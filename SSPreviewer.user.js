@@ -5,7 +5,7 @@
 // @include     http://www.sssloxia.jp/d/*.aspx
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js
-// @version     0.1.0
+// @version     0.1.001
 // @grant       none
 // ==/UserScript==
 //
@@ -193,7 +193,7 @@ var Program;
             };
             SSStatic.re_replaceEscapedDecoTag = new RegExp(Utility.HTML.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "ig");
             //Captures: ChangesName, ChangedName, IconNumber, Body
-            SSStatic.re_message = /^(@{3,}|@(@[^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
+            SSStatic.re_message = /^(@{3,}|@([^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
             //Captures: ChangesOrHidesName, ChangedName, IconNumber, Body
             SSStatic.re_serif = /^(@{4,}|@@@|@([^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
             return SSStatic;
