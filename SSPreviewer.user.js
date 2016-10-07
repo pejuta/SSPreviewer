@@ -226,7 +226,7 @@ var Program;
                 function AllPages() {
                 }
                 AllPages.Init = function () {
-                    $("#char_Button").before("<center class='F2'>↓(SSPreviewer) アイコンと愛称の自動取得↓</center>");
+                    $("#char_Button").before("<center class='F1'>↓(SSPreviewer) アイコン・愛称の自動読込↓</center>");
                 };
                 return AllPages;
             }());
