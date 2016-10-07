@@ -14,6 +14,12 @@
 SSPreviewer.user.js -> Raw または [こちら](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.user.js) をクリック後、
 Greasemonkey/Tampermonkeyに従ってください。
 
-
 ## 使用の準備
 インストール後、アイコンURL・キャラクター愛称情報読込のため、一度『キャラクター設定』宣言ページ(http://www.sssloxia.jp/d/chara.aspx) を開く必要があります。
+
+## 実装済み機能
+メッセージプレビュー
+セリフプレビュー
+
+## 実装予定機能
+日記プレビュー
