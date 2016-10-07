@@ -5,7 +5,7 @@
 // @include     http://www.sssloxia.jp/d/*.aspx
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js
-// @version     0.1.001
+// @version     0.1.002
 // @grant       none
 // ==/UserScript==
 //
@@ -122,10 +122,11 @@ var Program;
                 if (a === null) {
                     throw new Error("メッセージのパースに失敗しました。\r\nsource: " + source);
                 }
-                var usesDefaultName = (a[1] === undefined);
+                var hidesBrackets = (a[1] === "@@@");
+                var usesDefaultName = (a[1] === undefined && !hidesBrackets);
                 var changedName = null;
                 if (!usesDefaultName) {
-                    if (a[2] === undefined /* @{3,} */) {
+                    if (a[2] === undefined /* @{4,} */) {
                         changedName = a[1].substring(2);
                     }
                     else {
@@ -133,9 +134,10 @@ var Program;
                     }
                 }
                 var iconNumber = (a[3] === undefined ? 0 /*デフォルトアイコン番号*/ : parseInt(a[3]));
-                var text = a[4];
-                console.log(a);
+                var text = a[4] || "";
+                // console.log(a);
                 return {
+                    HidesBrackets: hidesBrackets,
                     UsesDefaultName: usesDefaultName,
                     ChangedName: changedName,
                     IconNumber: iconNumber,
@@ -193,7 +195,7 @@ var Program;
             };
             SSStatic.re_replaceEscapedDecoTag = new RegExp(Utility.HTML.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "ig");
             //Captures: ChangesName, ChangedName, IconNumber, Body
-            SSStatic.re_message = /^(@{3,}|@([^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
+            SSStatic.re_message = /^(@{4,}|@@@|@([^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
             //Captures: ChangesOrHidesName, ChangedName, IconNumber, Body
             SSStatic.re_serif = /^(@{4,}|@@@|@([^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
             return SSStatic;
@@ -432,8 +434,14 @@ var Program;
                 function MessagePreview() {
                     _super.apply(this, arguments);
                 }
+                MessagePreview.HideBrackets = function (template) {
+                    return template.replace("<font class='BB'>{name}<br></font><font color='white'>「{serifHTML}」</font>", "<font color='white'>{serifHTML}</font>");
+                };
                 MessagePreview.prototype.FormatPreviewHTML = function (template, source) {
                     var p = SSStatic.ParseMessage(source);
+                    if (p.HidesBrackets) {
+                        template = MessagePreview.HideBrackets(template);
+                    }
                     var iconURL = this.iconURLArray[p.IconNumber] || "";
                     var name = p.UsesDefaultName ? this.defaultName : p.ChangedName;
                     var serifHTML = SSStatic.FinalizeMessageOrSerifHTML(p.Text);
@@ -452,8 +460,7 @@ var Program;
                 //     super(insertAfter, args);
                 // }
                 MessagePreview.TEMPLATE = "<div name='Preview'><div name='Words' class='Words'><img alt='Icon' src='{iconURL}' border='0' align='left' height='60' width='60'>" +
-                    "<font class='BB'>{name}<br></font>" +
-                    "<font color='white'>「{serifHTML}」</font></div><br clear='ALL'></div>";
+                    "<font class='BB'>{name}<br></font><font color='white'>「{serifHTML}」</font></div><br clear='ALL'></div>";
                 return MessagePreview;
             }(EventPreviewBase));
             Preview_1.MessagePreview = MessagePreview;
