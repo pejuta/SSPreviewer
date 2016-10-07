@@ -1,4 +1,4 @@
-# SSPreviewer
+# SSPreviewer　*(beta)*
 [Seven Seas(七海)](http://www.sssloxia.jp/index.html) 宣言ページにさまざまなプレビューを追加するユーザースクリプトです。
 
 ## 免責事項
