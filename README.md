@@ -1,5 +1,5 @@
 # SSPreviewer
-[Seven Seas(七海)](http://www.sssloxia.jp/index.html) 宣言ページにさまざまな。プレビューを追加するユーザースクリプトです。
+[Seven Seas(七海)](http://www.sssloxia.jp/index.html) 宣言ページにさまざまなプレビューを追加するユーザースクリプトです。
 
 ## 免責事項
 当ユーザースクリプトを使用して生じた問題などに関しまして、一切の責任を負いかねます。  
