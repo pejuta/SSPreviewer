@@ -16,4 +16,4 @@ Greasemonkey/Tampermonkeyに従ってください。
 
 
 ## 使用の準備
-インストール後に一度、宣言のひとつ『キャラクター設定』ページ(http://www.sssloxia.jp/d/chara.aspx) を開き、アイコンURL・キャラクター愛称の情報を読み込ませる必要があります。
+インストール後、アイコンURL・キャラクター愛称情報読込のため、一度『キャラクター設定』宣言ページ(http://www.sssloxia.jp/d/chara.aspx) を開く必要があります。
