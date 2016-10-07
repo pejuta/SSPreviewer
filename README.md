@@ -1,2 +1,2 @@
 # SSPreviewer
-Provides several previews for Seven Seas
+Provides various previews for Seven Seas
