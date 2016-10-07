@@ -11,7 +11,7 @@
 > Google Chrome 53.0.2785.143 m + Tampermonkey 4.1.10  
 
 ## インストール方法
-SSPreviewer.user.js -> Raw または [こちら](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.user.js) をクリック、後
+SSPreviewer.user.js -> Raw または [こちら](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.user.js) をクリック後、
 Greasemonkey/Tampermonkeyに従ってください。
 
 
