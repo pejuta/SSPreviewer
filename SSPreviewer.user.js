@@ -5,7 +5,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js
-// @version     0.1.004
+// @version     0.1.005
 // @grant       none
 // ==/UserScript==
 //
@@ -232,7 +232,7 @@ var Program;
             SSStatic.SaveNickname = function (nickname) {
                 localStorage.setItem("SSPreviewer_NICKNAME", nickname);
             };
-            SSStatic.re_replaceEscapedDecoTag = new RegExp(Utility.HTML.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "ig");
+            SSStatic.re_replaceEscapedDecoTag = new RegExp(Utility.HTML.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "g");
             //Captures: ChangesName, ChangedName, IconNumber, Body
             SSStatic.re_message = /^(@@@|@([^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
             //Captures: ChangesOrHidesName, ChangedName, IconNumber, Body
