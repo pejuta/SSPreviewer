@@ -5,7 +5,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js
-// @version     0.1.003
+// @version     0.1.004
 // @grant       none
 // ==/UserScript==
 //
@@ -164,15 +164,7 @@ var Program;
                 }
                 var hidesBrackets = (a[1] === "@@@");
                 var usesDefaultName = (a[1] === undefined && !hidesBrackets);
-                var changedName = null;
-                if (!usesDefaultName) {
-                    if (a[2] === undefined /* @{4,} */) {
-                        changedName = a[1].substring(2);
-                    }
-                    else {
-                        changedName = a[2] || "";
-                    }
-                }
+                var changedName = usesDefaultName ? null : a[2] || "";
                 var iconNumber = (a[3] === undefined ? 0 /*デフォルトアイコン番号*/ : parseInt(a[3]));
                 var text = a[4] || "";
                 // console.log(a);
@@ -192,15 +184,7 @@ var Program;
                 }
                 var hidesBrackets = (a[1] === "@@@");
                 var usesDefaultName = (a[1] === undefined && !hidesBrackets);
-                var changedName = null;
-                if (!usesDefaultName) {
-                    if (a[2] === undefined /* @{4,} */) {
-                        changedName = a[1].substring(2);
-                    }
-                    else {
-                        changedName = a[2] || "";
-                    }
-                }
+                var changedName = usesDefaultName ? null : a[2] || "";
                 var iconNumber = (a[3] === undefined ? 0 /*デフォルトアイコン番号*/ : parseInt(a[3]));
                 var text = a[4] || "";
                 // console.log(a);
@@ -250,9 +234,9 @@ var Program;
             };
             SSStatic.re_replaceEscapedDecoTag = new RegExp(Utility.HTML.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "ig");
             //Captures: ChangesName, ChangedName, IconNumber, Body
-            SSStatic.re_message = /^(@{4,}|@@@|@([^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
+            SSStatic.re_message = /^(@@@|@([^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
             //Captures: ChangesOrHidesName, ChangedName, IconNumber, Body
-            SSStatic.re_serif = /^(@{4,}|@@@|@([^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
+            SSStatic.re_serif = /^(@@@|@([^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
             //capture: [odd: HTML, even: iconNumber]
             SSStatic.re_iconSplit = /\/(\d+)\//g;
             return SSStatic;
