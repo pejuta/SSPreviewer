@@ -5,7 +5,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js
-// @version     0.1.005
+// @version     0.1.006
 // @grant       none
 // ==/UserScript==
 //
@@ -248,7 +248,7 @@ var Program;
                 $("textarea").each(function (i, e) {
                     var p = new SSPreview.SerifPreview({
                         insertAfter: e,
-                        textarea: e,
+                        textbox: e,
                         defaultName: SSStatic.LoadNickname(),
                         iconURLArray: SSStatic.LoadIconURLArray()
                     });
@@ -259,7 +259,7 @@ var Program;
                     var imageURLBox = $(e).nextUntil("input").last().next()[0];
                     var p = new SSPreview.MessagePreview({
                         insertAfter: imageURLBox,
-                        textarea: e,
+                        textbox: e,
                         defaultName: SSStatic.LoadNickname(),
                         iconURLArray: SSStatic.LoadIconURLArray()
                     });
@@ -281,10 +281,17 @@ var Program;
                 };
                 Main.InitPreviews = function () {
                     var diaryBox = $("#Diary_TextBox")[0];
-                    var p = new SSPreview.DiaryPreview({
+                    var diaryPreview = new SSPreview.DiaryPreview({
                         insertAfter: diaryBox,
-                        textarea: diaryBox,
+                        textbox: diaryBox,
                         defaultName: null,
+                        iconURLArray: SSStatic.LoadIconURLArray()
+                    });
+                    var serifWhenUsingItem = $("#TextBox12")[0];
+                    var serifPreview_WhenUsingItem = new SSPreview.SerifPreview({
+                        insertAfter: serifWhenUsingItem,
+                        textbox: serifWhenUsingItem,
+                        defaultName: SSStatic.LoadNickname(),
                         iconURLArray: SSStatic.LoadIconURLArray()
                     });
                 };
@@ -300,7 +307,7 @@ var Program;
                     var $commentBox = $("#commentTxt");
                     var p = new SSPreview.PartyBBSPreview({
                         insertAfter: $commentBox.closest("div.BackBoard")[0],
-                        textarea: $commentBox[0],
+                        textbox: $commentBox[0],
                         defaultName: null,
                         iconURLArray: SSStatic.LoadIconURLArray(),
                         nameBox: $("#nameTxt")[0],
@@ -430,10 +437,10 @@ var Program;
                 __extends(SSEventPreviewBase, _super);
                 function SSEventPreviewBase(args) {
                     _super.call(this, args.insertAfter);
-                    this.textarea = args.textarea;
+                    this.textbox = args.textbox;
                     this.defaultName = args.defaultName;
                     this.iconURLArray = args.iconURLArray;
-                    this.HundleUpdateEvent(this.textarea, "keyup");
+                    this.HundleUpdateEvent(this.textbox, "keyup");
                 }
                 return SSEventPreviewBase;
             }(Preview.EventBasedPreview));
@@ -456,7 +463,7 @@ var Program;
                     return Utility.String.format(template, { iconURL: iconURL, name: name, serifHTML: serifHTML });
                 };
                 SerifPreview.prototype.Update = function () {
-                    var source = this.textarea.value;
+                    var source = this.textbox.value;
                     if (source === "") {
                         return this.Hide();
                     }
@@ -464,7 +471,7 @@ var Program;
                     this.OverwritePreview(previewHTML);
                     return this;
                 };
-                // constructor(insertAfter: HTMLElement, args: { textarea: HTMLTextAreaElement, defaultName: string, iconURLArray: string[] }){
+                // constructor(insertAfter: HTMLElement, args: { textbox: HTMLTextAreaElement | HTMLInputElement, defaultName: string, iconURLArray: string[] }){
                 //     super(insertAfter, args);
                 // }
                 SerifPreview.TEMPLATE = "<div name='Preview'><div name='Words' class='Words'>" +
@@ -492,7 +499,7 @@ var Program;
                     return Utility.String.format(template, { iconURL: iconURL, name: name, messageHTML: messageHTML });
                 };
                 MessagePreview.prototype.Update = function () {
-                    var source = this.textarea.value;
+                    var source = this.textbox.value;
                     if (source === "") {
                         return this.Hide();
                     }
@@ -500,7 +507,7 @@ var Program;
                     this.OverwritePreview(previewHTML);
                     return this;
                 };
-                // constructor(insertAfter: HTMLElement, args: { textarea: HTMLTextAreaElement, defaultName: string, iconURLArray: string[] }){
+                // constructor(insertAfter: HTMLElement, args: { textbox: HTMLTextAreaElement | HTMLInputElement, defaultName: string, iconURLArray: string[] }){
                 //     super(insertAfter, args);
                 // }
                 MessagePreview.TEMPLATE = "<div name='Preview'><div name='Words' class='Words'><img alt='Icon' src='{iconURL}' border='0' align='left' height='60' width='60'>" +
@@ -526,7 +533,7 @@ var Program;
                 PartyBBSPreview.prototype.Update = function () {
                     var title = this.titleBox.value || "無題";
                     var name = this.nameBox.value;
-                    var text = this.textarea.value;
+                    var text = this.textbox.value;
                     if (text === "" || name === "") {
                         return this.Hide();
                     }
@@ -549,7 +556,7 @@ var Program;
                     return Utility.String.format(template, { html: html });
                 };
                 DiaryPreview.prototype.Update = function () {
-                    var source = this.textarea.value;
+                    var source = this.textbox.value;
                     if (source === "") {
                         return this.Hide();
                     }
