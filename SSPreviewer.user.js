@@ -5,7 +5,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js
-// @version     0.1.006
+// @version     0.1.007
 // @grant       none
 // ==/UserScript==
 //
@@ -25,18 +25,18 @@ var Program;
     var $ = jQuery;
     var Utility;
     (function (Utility) {
-        var jQuery = (function () {
-            function jQuery() {
+        var JQueryUtil = (function () {
+            function JQueryUtil() {
             }
-            //replaceWithとは異なり、戻り値は置換先オブジェクト
-            jQuery.replaceTo = function (from, to) {
+            // replaceWithとは異なり、戻り値は置換先オブジェクト
+            JQueryUtil.replaceTo = function (from, to) {
                 var $to = $(to);
                 $(from).replaceWith($to);
                 return $to;
             };
-            return jQuery;
+            return JQueryUtil;
         }());
-        Utility.jQuery = jQuery;
+        Utility.JQueryUtil = JQueryUtil;
         var String = (function () {
             function String() {
             }
@@ -53,7 +53,7 @@ var Program;
                         strTarget = strTarget.replace(searchValue, replaceTo);
                     }
                 }
-                //searchValue: RegExp
+                // searchValue: RegExp
                 for (;;) {
                     if (!searchValue.test(strTarget)) {
                         return strTarget;
@@ -97,6 +97,11 @@ var Program;
             HTML.replaceLineBreakToBRTag = function (html) {
                 return html.replace(/(?:\r\n|\r|\n)/g, "<BR>");
             };
+            // capture: [odd: HTML, even: iconNumber]
+            var re_escapedBRTag = new RegExp(Utility.HTML.escape("<BR>"), "g");
+            HTML.UnescapeBRTag = function (source) {
+                return source.replace(re_escapedBRTag, "<BR>");
+            };
         })(HTML = Utility.HTML || (Utility.HTML = {}));
     })(Utility || (Utility = {}));
     var Preview;
@@ -120,9 +125,16 @@ var Program;
                 }
                 return this;
             };
+            Object.defineProperty(EventBasedPreview.prototype, "Preview", {
+                get: function () {
+                    return this.preview;
+                },
+                enumerable: true,
+                configurable: true
+            });
             EventBasedPreview.prototype.OverwritePreview = function (newHtml) {
                 if (this.preview) {
-                    this.preview = Utility.jQuery.replaceTo(this.preview, newHtml)[0];
+                    this.preview = Utility.JQueryUtil.replaceTo(this.preview, newHtml)[0];
                 }
                 else {
                     this.preview = $(newHtml).insertAfter(this.insertAfter)[0];
@@ -142,255 +154,327 @@ var Program;
     })(Preview = Program.Preview || (Program.Preview = {}));
     var SS;
     (function (SS) {
-        var SSStatic = (function () {
-            function SSStatic() {
+        var SSSettings = (function () {
+            function SSSettings() {
+                this.iconURLArray = SSSettings.LoadIconURLArray();
+                this.nickname = SSSettings.LoadNickname();
+                this.pno = SSSettings.ReadPNoByCookie();
             }
-            SSStatic.ReadPNoByCookie = function () {
+            Object.defineProperty(SSSettings.prototype, "IconURLArray", {
+                get: function () {
+                    return this.iconURLArray;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(SSSettings.prototype, "Nickname", {
+                get: function () {
+                    return this.nickname;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(SSSettings.prototype, "PNo", {
+                get: function () {
+                    return this.pno;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            SSSettings.prototype.SaveIconURLArray = function (overwriteWith) {
+                if (overwriteWith) {
+                    this.iconURLArray = overwriteWith;
+                }
+                SSSettings.SaveIconURLArray(this.iconURLArray);
+            };
+            SSSettings.prototype.SaveNickname = function (overwriteWith) {
+                if (overwriteWith) {
+                    this.nickname = overwriteWith;
+                }
+                SSSettings.SaveNickname(this.nickname);
+            };
+            SSSettings.prototype.SplitMultiIconTagExpression = function (source) {
+                // capture: [1:@@@ or @name@, 2:iconNum]
+                var s = source.split(/(@@@|@[^@]*@)?\/(\d|[1-9]\d+)\//g);
+                if (s.length === 1) {
+                    return [source];
+                }
+                var expArray = [];
+                for (var si = 0, iiEnd = s.length, ei = 0; si < iiEnd; si += 3) {
+                    expArray[ei] = (ei in expArray) ? (expArray[ei] + s[si]) : s[si];
+                    if (si === iiEnd - 1) {
+                        return expArray;
+                    }
+                    var iconNum = parseInt(s[si + 2]);
+                    var isFirstExpZeroLength = (si === 0 && s[si] === "");
+                    if (this.IsValidIcon(iconNum) && !isFirstExpZeroLength) {
+                        expArray[++ei] = "";
+                    }
+                    var nameSymbol = (s[si + 1] === undefined) ? "" : s[si + 1];
+                    expArray[ei] += nameSymbol + "/" + iconNum + "/";
+                }
+                throw new Error("[表現分割エラー]");
+            };
+            SSSettings.prototype.ReplaceIconTagToHTML = function (source) {
+                // capture: [1: iconNum]
+                var htmlFrags = source.split(/\/(\d|[1-9]\d+)\//g);
+                if (htmlFrags.length === 1) {
+                    return source;
+                }
+                for (var ii = 1, iiEnd = htmlFrags.length; ii < iiEnd; ii += 2) {
+                    var iconNum = parseInt(htmlFrags[ii]);
+                    if (this.IsValidIcon(iconNum)) {
+                        htmlFrags[ii] = "<br clear=\"all\"><img alt=\"Icon\" src=\"" + this.iconURLArray[iconNum] + "\" border=\"0\" align=\"left\" height=\"60\" width=\"60\">";
+                    }
+                    else {
+                        htmlFrags[ii] = "/" + iconNum + "/";
+                    }
+                }
+                return htmlFrags.join("");
+            };
+            SSSettings.prototype.IsValidIcon = function (iconNumber) {
+                return iconNumber >= 0 && iconNumber < this.iconURLArray.length;
+            };
+            SSSettings.UserExpressionToHTML = function (source) {
+                var html = Utility.HTML.escape(source);
+                html = Utility.HTML.UnescapeBRTag(html);
+                html = Utility.HTML.replaceLineBreakToBRTag(html);
+                return Utility.String.replaceLoop(html, SSSettings.re_replaceEscapedDecoTag, "<span class='$1'>$2</span>");
+            };
+            SSSettings.prototype.ParseMessage = function (source) {
+                return this.ParseBasicExpression(source);
+            };
+            // 基本的な構文はメッセージと台詞で同じ。or構文が追加予定とのことなので分けてる。
+            SSSettings.prototype.ParseSerif = function (source) {
+                return this.ParseBasicExpression(source);
+            };
+            SSSettings.prototype.ParseBasicExpression = function (source) {
+                var a = SSSettings.re_baseExpression.exec(source);
+                if (a === null) {
+                    throw new Error("syntax error caused.\r\nsource: " + source);
+                }
+                var hidesBrackets = (a[1] === "@@@");
+                var usesDefaultName = (a[1] === undefined && !hidesBrackets);
+                var changedName = usesDefaultName ? null : a[2] || "";
+                var text = a[4];
+                var iconNumber = 0; // デフォルトアイコン番号
+                if (a[3] !== undefined) {
+                    var n = parseInt(a[3]);
+                    if (this.IsValidIcon(n)) {
+                        iconNumber = n;
+                    }
+                    else {
+                        text = ("/" + n + "/") + text;
+                    }
+                }
+                return {
+                    HidesBrackets: hidesBrackets,
+                    UsesDefaultName: usesDefaultName,
+                    ChangedName: changedName,
+                    IconNumber: iconNumber,
+                    Text: text,
+                    Source: source
+                };
+            };
+            //読み込めなかった場合eno0扱い
+            SSSettings.ReadPNoByCookie = function () {
                 var pno = $.cookie("pno");
                 if (pno === null) {
-                    return -1;
+                    return 0;
                 }
                 return parseInt(pno);
             };
-            SSStatic.FinalizeUserDescriptionAsHTML = function (source) {
-                var html = Utility.HTML.escape(source);
-                html = Utility.HTML.replaceLineBreakToBRTag(html);
-                return Utility.String.replaceLoop(html, SSStatic.re_replaceEscapedDecoTag, "<span class='$1'>$2</span>");
-            };
-            SSStatic.ParseMessage = function (source) {
-                var a = SSStatic.re_message.exec(source);
-                if (a === null) {
-                    throw new Error("メッセージのパースに失敗しました。\r\nsource: " + source);
-                }
-                var hidesBrackets = (a[1] === "@@@");
-                var usesDefaultName = (a[1] === undefined && !hidesBrackets);
-                var changedName = usesDefaultName ? null : a[2] || "";
-                var iconNumber = (a[3] === undefined ? 0 /*デフォルトアイコン番号*/ : parseInt(a[3]));
-                var text = a[4] || "";
-                // console.log(a);
-                return {
-                    HidesBrackets: hidesBrackets,
-                    UsesDefaultName: usesDefaultName,
-                    ChangedName: changedName,
-                    IconNumber: iconNumber,
-                    Text: text,
-                    Source: source
-                };
-            };
-            SSStatic.ParseSerif = function (source) {
-                var a = SSStatic.re_serif.exec(source);
-                if (a === null) {
-                    throw new Error("セリフのパースに失敗しました。\r\nsource: " + source);
-                }
-                var hidesBrackets = (a[1] === "@@@");
-                var usesDefaultName = (a[1] === undefined && !hidesBrackets);
-                var changedName = usesDefaultName ? null : a[2] || "";
-                var iconNumber = (a[3] === undefined ? 0 /*デフォルトアイコン番号*/ : parseInt(a[3]));
-                var text = a[4] || "";
-                // console.log(a);
-                return {
-                    HidesBrackets: hidesBrackets,
-                    UsesDefaultName: usesDefaultName,
-                    ChangedName: changedName,
-                    IconNumber: iconNumber,
-                    Text: text,
-                    Source: source
-                };
-            };
-            SSStatic.ReplaceIconDescriptionToTag = function (source, iconURLArray) {
-                var htmlFrag = source.split(SSStatic.re_iconSplit);
-                if (htmlFrag.length > 1) {
-                    for (var i = 1, iEnd = htmlFrag.length; i < iEnd; i += 2) {
-                        var iconNum = parseInt(htmlFrag[i]);
-                        if (iconNum < iconURLArray.length) {
-                            htmlFrag[i] = "<br clear=\"all\"><img alt=\"Icon\" src=\"" + iconURLArray[iconNum] + "\" border=\"0\" align=\"left\" height=\"60\" width=\"60\">";
-                        }
-                        else {
-                            htmlFrag[i] = "/" + iconNum + "/";
-                        }
-                    }
-                }
-                return htmlFrag.join("");
-            };
-            SSStatic.LoadIconURLArray = function () {
+            SSSettings.LoadIconURLArray = function () {
                 var json = localStorage.getItem("SSPreviewer_ICON_URL_ARRAY");
                 if (json === null) {
                     return [];
                 }
                 return JSON.parse(json);
             };
-            SSStatic.SaveIconURLArray = function (iconURLArray) {
+            SSSettings.SaveIconURLArray = function (iconURLArray) {
                 localStorage.setItem("SSPreviewer_ICON_URL_ARRAY", JSON.stringify(iconURLArray));
             };
-            SSStatic.LoadNickname = function () {
+            SSSettings.LoadNickname = function () {
                 var name = localStorage.getItem("SSPreviewer_NICKNAME");
                 if (name === null) {
                     return "(名称)";
                 }
                 return name;
             };
-            SSStatic.SaveNickname = function (nickname) {
+            SSSettings.SaveNickname = function (nickname) {
                 localStorage.setItem("SSPreviewer_NICKNAME", nickname);
             };
-            SSStatic.re_replaceEscapedDecoTag = new RegExp(Utility.HTML.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "g");
-            //Captures: ChangesName, ChangedName, IconNumber, Body
-            SSStatic.re_message = /^(@@@|@([^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
-            //Captures: ChangesOrHidesName, ChangedName, IconNumber, Body
-            SSStatic.re_serif = /^(@@@|@([^@]*)@)?(?:\/(\d+)\/)?([\s\S]*?)$/;
-            //capture: [odd: HTML, even: iconNumber]
-            SSStatic.re_iconSplit = /\/(\d+)\//g;
-            return SSStatic;
+            SSSettings.re_replaceEscapedDecoTag = new RegExp(Utility.HTML.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "g");
+            // Captures: ChangesName, ChangedName, IconNumber, Body
+            SSSettings.re_baseExpression = /^(@@@|@([^@]*)@)?(?:\/(\d|[1-9]\d+)\/)?([\s\S]*?)$/;
+            return SSSettings;
         }());
-        SS.SSStatic = SSStatic;
+        SS.SSSettings = SSSettings;
         var Pages;
         (function (Pages) {
-            var Generic_InitSerifPreviews = function () {
-                $("textarea").each(function (i, e) {
-                    var p = new SSPreview.SerifPreview({
-                        insertAfter: e,
-                        textbox: e,
-                        defaultName: SSStatic.LoadNickname(),
-                        iconURLArray: SSStatic.LoadIconURLArray()
-                    });
-                });
-            };
-            var Generic_InitMessagePreviews = function () {
-                $("textarea").each(function (i, e) {
-                    var imageURLBox = $(e).nextUntil("input").last().next()[0];
-                    var p = new SSPreview.MessagePreview({
-                        insertAfter: imageURLBox,
-                        textbox: e,
-                        defaultName: SSStatic.LoadNickname(),
-                        iconURLArray: SSStatic.LoadIconURLArray()
-                    });
-                });
-            };
-            var AllPages = (function () {
-                function AllPages() {
+            var Page = (function () {
+                function Page(sss) {
+                    this.sss = sss;
                 }
-                AllPages.Init = function () {
+                Object.defineProperty(Page.prototype, "Settings", {
+                    get: function () {
+                        return this.sss;
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
+                Page.prototype.InitAllTextboxesWithSerifPreview = function () {
+                    var _this = this;
+                    $("textarea").each(function (i, e) {
+                        var preview = new SSPreview.SerifPreview({
+                            insertAfter: e,
+                            textbox: e,
+                            sss: _this.sss
+                        });
+                    });
+                };
+                Page.prototype.InitAllTextboxesWithMessagePreview = function () {
+                    var _this = this;
+                    $("textarea").each(function (i, e) {
+                        var imageURLBox = $(e).nextUntil("input").last().next()[0];
+                        var preview = new SSPreview.MessagePreview({
+                            insertAfter: imageURLBox,
+                            textbox: e,
+                            sss: _this.sss
+                        });
+                    });
+                };
+                return Page;
+            }());
+            var AllPages = (function (_super) {
+                __extends(AllPages, _super);
+                function AllPages(sss) {
+                    _super.call(this, sss);
+                    this.Init();
+                }
+                AllPages.prototype.Init = function () {
                     $("#char_Button").before("<center class='F1'>↓(SSPreviewer) アイコン・愛称の自動読込↓</center>");
                 };
                 return AllPages;
-            }());
-            var Main = (function () {
-                function Main() {
+            }(Page));
+            var Main = (function (_super) {
+                __extends(Main, _super);
+                function Main(sss) {
+                    _super.call(this, sss);
+                    this.Init();
                 }
-                Main.Init = function () {
-                    Main.InitPreviews();
-                };
-                Main.InitPreviews = function () {
+                Main.prototype.Init = function () {
                     var diaryBox = $("#Diary_TextBox")[0];
                     var diaryPreview = new SSPreview.DiaryPreview({
                         insertAfter: diaryBox,
                         textbox: diaryBox,
-                        defaultName: null,
-                        iconURLArray: SSStatic.LoadIconURLArray()
+                        sss: this.sss
                     });
                     var serifWhenUsingItem = $("#TextBox12")[0];
                     var serifPreview_WhenUsingItem = new SSPreview.SerifPreview({
                         insertAfter: serifWhenUsingItem,
                         textbox: serifWhenUsingItem,
-                        defaultName: SSStatic.LoadNickname(),
-                        iconURLArray: SSStatic.LoadIconURLArray()
+                        sss: this.sss
                     });
                 };
                 return Main;
-            }());
-            var PartyBBS = (function () {
-                function PartyBBS() {
+            }(Page));
+            var PartyBBS = (function (_super) {
+                __extends(PartyBBS, _super);
+                function PartyBBS(sss) {
+                    _super.call(this, sss);
+                    this.Init();
                 }
-                PartyBBS.Init = function () {
-                    PartyBBS.InitPreviews();
-                };
-                PartyBBS.InitPreviews = function () {
+                PartyBBS.prototype.Init = function () {
                     var $commentBox = $("#commentTxt");
-                    var p = new SSPreview.PartyBBSPreview({
+                    var preview = new SSPreview.PartyBBSPreview({
                         insertAfter: $commentBox.closest("div.BackBoard")[0],
                         textbox: $commentBox[0],
-                        defaultName: null,
-                        iconURLArray: SSStatic.LoadIconURLArray(),
+                        sss: this.sss,
                         nameBox: $("#nameTxt")[0],
                         titleBox: $("#titleTxt")[0]
                     });
                 };
                 return PartyBBS;
-            }());
-            var Trade = (function () {
-                function Trade() {
+            }(Page));
+            var Trade = (function (_super) {
+                __extends(Trade, _super);
+                function Trade(sss) {
+                    _super.call(this, sss);
+                    this.Init();
                 }
-                Trade.Init = function () {
-                    Trade.InitPreviews();
-                };
-                Trade.InitPreviews = function () {
-                    Generic_InitSerifPreviews();
+                Trade.prototype.Init = function () {
+                    this.InitAllTextboxesWithSerifPreview();
                 };
                 return Trade;
-            }());
-            var Reinforcement = (function () {
-                function Reinforcement() {
+            }(Page));
+            var Reinforcement = (function (_super) {
+                __extends(Reinforcement, _super);
+                function Reinforcement(sss) {
+                    _super.call(this, sss);
+                    this.Init();
                 }
-                Reinforcement.Init = function () {
-                    Reinforcement.InitPreviews();
-                };
-                Reinforcement.InitPreviews = function () {
-                    Generic_InitSerifPreviews();
+                Reinforcement.prototype.Init = function () {
+                    this.InitAllTextboxesWithSerifPreview();
                 };
                 return Reinforcement;
-            }());
-            var BattleSettings = (function () {
-                function BattleSettings() {
+            }(Page));
+            var BattleSettings = (function (_super) {
+                __extends(BattleSettings, _super);
+                function BattleSettings(sss) {
+                    _super.call(this, sss);
+                    this.Init();
                 }
-                BattleSettings.Init = function () {
-                    BattleSettings.InitPreviews();
-                };
-                BattleSettings.InitPreviews = function () {
-                    Generic_InitSerifPreviews();
+                BattleSettings.prototype.Init = function () {
+                    this.InitAllTextboxesWithSerifPreview();
                 };
                 return BattleSettings;
-            }());
-            var BattleWords = (function () {
-                function BattleWords() {
+            }(Page));
+            var BattleWords = (function (_super) {
+                __extends(BattleWords, _super);
+                function BattleWords(sss) {
+                    _super.call(this, sss);
+                    this.Init();
                 }
-                BattleWords.Init = function () {
-                    BattleWords.InitPreviews();
-                };
-                BattleWords.InitPreviews = function () {
-                    Generic_InitSerifPreviews();
+                BattleWords.prototype.Init = function () {
+                    this.InitAllTextboxesWithSerifPreview();
                 };
                 return BattleWords;
-            }());
-            var Message = (function () {
-                function Message() {
+            }(Page));
+            var Message = (function (_super) {
+                __extends(Message, _super);
+                function Message(sss) {
+                    _super.call(this, sss);
+                    this.Init();
                 }
-                Message.Init = function () {
-                    Message.InitPreviews();
-                };
-                Message.InitPreviews = function () {
-                    Generic_InitMessagePreviews();
+                Message.prototype.Init = function () {
+                    this.InitAllTextboxesWithMessagePreview();
                 };
                 return Message;
-            }());
-            var GroupMessage = (function () {
-                function GroupMessage() {
+            }(Page));
+            var GroupMessage = (function (_super) {
+                __extends(GroupMessage, _super);
+                function GroupMessage(sss) {
+                    _super.call(this, sss);
+                    this.Init();
                 }
-                GroupMessage.Init = function () {
-                    GroupMessage.InitPreviews();
-                };
-                GroupMessage.InitPreviews = function () {
-                    Generic_InitMessagePreviews();
+                GroupMessage.prototype.Init = function () {
+                    this.InitAllTextboxesWithMessagePreview();
                 };
                 return GroupMessage;
-            }());
-            var CharacterSettings = (function () {
-                function CharacterSettings() {
+            }(Page));
+            var CharacterSettings = (function (_super) {
+                __extends(CharacterSettings, _super);
+                function CharacterSettings(sss) {
+                    _super.call(this, sss);
+                    this.Init();
                 }
-                CharacterSettings.Init = function () {
-                    SSStatic.SaveIconURLArray(CharacterSettings.ExtractIconUrlArray());
-                    SSStatic.SaveNickname(CharacterSettings.ExtractNickname());
+                CharacterSettings.prototype.Init = function () {
+                    this.sss.SaveIconURLArray(CharacterSettings.ExtractIconUrlArray());
+                    this.sss.SaveNickname(CharacterSettings.ExtractNickname());
                 };
                 CharacterSettings.ExtractIconUrlArray = function () {
-                    var defaultIconURL = "http://www.sssloxia.jp/p/default.jpg";
+                    var defaultIconURL = "/p/default.jpg";
                     var firstIconURL = $("#TextBox7").val() || defaultIconURL;
                     var a = [firstIconURL];
                     for (var i = 0;; i++) {
@@ -405,41 +489,38 @@ var Program;
                     return $("#TextBox2").val();
                 };
                 return CharacterSettings;
-            }());
-            var pageScripts = {
-                "/d/mainaction.aspx": Main.Init,
-                "/d/pbbs.aspx": PartyBBS.Init,
-                "/d/tradeaction.aspx": Trade.Init,
-                "/d/strgsaction.aspx": Reinforcement.Init,
-                "/d/battle.aspx": BattleSettings.Init,
-                "/d/battlemessage.aspx": BattleWords.Init,
-                "/d/messageaction.aspx": Message.Init,
-                "/d/commesaction.aspx": GroupMessage.Init,
-                "/d/chara.aspx": CharacterSettings.Init
-            };
-            Pages.RunSuitableScriptForCurrentPage = function () {
-                AllPages.Init();
+            }(Page));
+            Pages.RunSuitableScriptForCurrentPage = function (sss) {
+                var pages = {
+                    "/d/mainaction.aspx": Main,
+                    "/d/pbbs.aspx": PartyBBS,
+                    "/d/tradeaction.aspx": Trade,
+                    "/d/strgsaction.aspx": Reinforcement,
+                    "/d/battle.aspx": BattleSettings,
+                    "/d/battlemessage.aspx": BattleWords,
+                    "/d/messageaction.aspx": Message,
+                    "/d/commesaction.aspx": GroupMessage,
+                    "/d/chara.aspx": CharacterSettings
+                };
+                new AllPages(sss);
                 var path = document.location.pathname;
-                if (pageScripts.hasOwnProperty(path)) {
-                    pageScripts[path]();
+                if (pages.hasOwnProperty(path)) {
+                    new pages[path](sss);
                 }
             };
         })(Pages = SS.Pages || (SS.Pages = {}));
-        //アイコン取得について: 少なくともログイン経験があればPNo.はCookieから取得できる。その状態で結果を開いた時にアイコンURL配列を取得する？
-        //プレビューのインスタンス生成時にコンストラクタが要求すべき
+        // アイコン取得について: 少なくともログイン経験があればPNo.はCookieから取得できる。その状態で結果を開いた時にアイコンURL配列を取得する？
+        // プレビューのインスタンス生成時にコンストラクタが要求すべき
         //
-        //デフォルト愛称の取得も同様
+        // デフォルト愛称の取得も同様
         var SSPreview;
         (function (SSPreview) {
-            //対象エレメントで入力を受け付ける→テンプレートを用意する→項目を置換する→HTMLが用意できる→置換する
-            //コンストラクタ: 対象エレメント、プレビューの挿入先直前エレメント、
             var SSEventPreviewBase = (function (_super) {
                 __extends(SSEventPreviewBase, _super);
                 function SSEventPreviewBase(args) {
                     _super.call(this, args.insertAfter);
                     this.textbox = args.textbox;
-                    this.defaultName = args.defaultName;
-                    this.iconURLArray = args.iconURLArray;
+                    this.sss = args.sss;
                     this.HundleUpdateEvent(this.textbox, "keyup");
                 }
                 return SSEventPreviewBase;
@@ -449,34 +530,45 @@ var Program;
                 function SerifPreview() {
                     _super.apply(this, arguments);
                 }
-                SerifPreview.HideBrackets = function (template) {
-                    return template.replace("{name}「{serifHTML}」", "{serifHTML}");
-                };
-                SerifPreview.prototype.FormatPreviewHTML = function (template, source) {
-                    var p = SSStatic.ParseSerif(source);
-                    if (p.HidesBrackets) {
-                        template = SerifPreview.HideBrackets(template);
-                    }
-                    var iconURL = this.iconURLArray[p.IconNumber] || "";
-                    var name = p.UsesDefaultName ? this.defaultName : p.ChangedName;
-                    var serifHTML = SSStatic.FinalizeUserDescriptionAsHTML(p.Text);
-                    return Utility.String.format(template, { iconURL: iconURL, name: name, serifHTML: serifHTML });
+                SerifPreview.prototype.FormatPreviewHTML = function (source) {
+                    var _this = this;
+                    var previewBodyHTML = this.sss.SplitMultiIconTagExpression(source)
+                        .map(function (exp, i, a) {
+                        return _this.sss.ParseSerif(exp);
+                    })
+                        .map(function (p, i, a) {
+                        var template;
+                        if (p.HidesBrackets) {
+                            template = SerifPreview.TEMPLATE_ONEICON_NOBRACKETS;
+                        }
+                        else {
+                            template = SerifPreview.TEMPLATE_ONEICON;
+                        }
+                        var iconURL = _this.sss.IconURLArray[p.IconNumber] || "";
+                        var name = p.UsesDefaultName ? _this.sss.Nickname : p.ChangedName;
+                        var html = SSSettings.UserExpressionToHTML(p.Text);
+                        return Utility.String.format(template, { iconURL: iconURL, name: name, html: html });
+                    })
+                        .join("");
+                    return Utility.String.format(SerifPreview.TEMPLATE_CONTAINER, { previewBodyHTML: previewBodyHTML });
                 };
                 SerifPreview.prototype.Update = function () {
                     var source = this.textbox.value;
                     if (source === "") {
                         return this.Hide();
                     }
-                    var previewHTML = this.FormatPreviewHTML(SerifPreview.TEMPLATE, source);
+                    var previewHTML = this.FormatPreviewHTML(source);
                     this.OverwritePreview(previewHTML);
                     return this;
                 };
                 // constructor(insertAfter: HTMLElement, args: { textbox: HTMLTextAreaElement | HTMLInputElement, defaultName: string, iconURLArray: string[] }){
                 //     super(insertAfter, args);
                 // }
-                SerifPreview.TEMPLATE = "<div name='Preview'><div name='Words' class='Words'>" +
-                    "<img alt='Icon' src='{iconURL}' border='0' align='left' height='60' width='60'>" +
-                    "<font color='white'>{name}「{serifHTML}」</font></div><br clear='ALL'></div>";
+                SerifPreview.TEMPLATE_CONTAINER = "<div name='Preview'>{previewBodyHTML}</div>";
+                SerifPreview.TEMPLATE_ONEICON = "<div name='Words' class='Words'><img alt='Icon' src='{iconURL}' border='0' align='left' height='60' width='60'>" +
+                    "<font color='white'>{name}「{html}」</font></div><br clear='ALL'>";
+                SerifPreview.TEMPLATE_ONEICON_NOBRACKETS = "<div name='Words' class='Words'><img alt='Icon' src='{iconURL}' border='0' align='left' height='60' width='60'>" +
+                    "<font color='white'>{html}</font></div><br clear='ALL'>";
                 return SerifPreview;
             }(SSEventPreviewBase));
             SSPreview.SerifPreview = SerifPreview;
@@ -485,33 +577,45 @@ var Program;
                 function MessagePreview() {
                     _super.apply(this, arguments);
                 }
-                MessagePreview.HideBrackets = function (template) {
-                    return template.replace("<font class='BB'>{name}<br></font><font color='white'>「{messageHTML}」</font>", "<font color='white'>{messageHTML}</font>");
-                };
-                MessagePreview.prototype.FormatPreviewHTML = function (template, source) {
-                    var p = SSStatic.ParseMessage(source);
-                    if (p.HidesBrackets) {
-                        template = MessagePreview.HideBrackets(template);
-                    }
-                    var iconURL = this.iconURLArray[p.IconNumber] || "";
-                    var name = p.UsesDefaultName ? this.defaultName : p.ChangedName;
-                    var messageHTML = SSStatic.FinalizeUserDescriptionAsHTML(p.Text);
-                    return Utility.String.format(template, { iconURL: iconURL, name: name, messageHTML: messageHTML });
+                MessagePreview.prototype.FormatPreviewHTML = function (source) {
+                    var _this = this;
+                    var previewBodyHTML = this.sss.SplitMultiIconTagExpression(source)
+                        .map(function (exp, i, a) {
+                        return _this.sss.ParseMessage(exp);
+                    }, this)
+                        .map(function (p, i, a) {
+                        var template;
+                        if (p.HidesBrackets) {
+                            template = MessagePreview.TEMPLATE_ONEICON_NOBRACKETS;
+                        }
+                        else {
+                            template = MessagePreview.TEMPLATE_ONEICON;
+                        }
+                        var iconURL = _this.sss.IconURLArray[p.IconNumber] || "";
+                        var name = p.UsesDefaultName ? _this.sss.Nickname : p.ChangedName;
+                        var html = SSSettings.UserExpressionToHTML(p.Text);
+                        return Utility.String.format(template, { iconURL: iconURL, name: name, html: html });
+                    }, this)
+                        .join("");
+                    return Utility.String.format(MessagePreview.TEMPLATE_CONTAINER, { previewBodyHTML: previewBodyHTML });
                 };
                 MessagePreview.prototype.Update = function () {
                     var source = this.textbox.value;
                     if (source === "") {
                         return this.Hide();
                     }
-                    var previewHTML = this.FormatPreviewHTML(MessagePreview.TEMPLATE, source);
+                    var previewHTML = this.FormatPreviewHTML(source);
                     this.OverwritePreview(previewHTML);
                     return this;
                 };
                 // constructor(insertAfter: HTMLElement, args: { textbox: HTMLTextAreaElement | HTMLInputElement, defaultName: string, iconURLArray: string[] }){
                 //     super(insertAfter, args);
                 // }
-                MessagePreview.TEMPLATE = "<div name='Preview'><div name='Words' class='Words'><img alt='Icon' src='{iconURL}' border='0' align='left' height='60' width='60'>" +
-                    "<font class='BB'>{name}<br></font><font color='white'>「{messageHTML}」</font></div><br clear='ALL'></div>";
+                MessagePreview.TEMPLATE_CONTAINER = "<div name='Preview'>{previewBodyHTML}</div>";
+                MessagePreview.TEMPLATE_ONEICON = "<div name='Words' class='Words'><img alt='Icon' src='{iconURL}' border='0' align='left' height='60' width='60'>" +
+                    "<font class='BB'>{name}<br></font><font color='white'>「{html}」</font></div><br clear='ALL'>";
+                MessagePreview.TEMPLATE_ONEICON_NOBRACKETS = "<div name='Words' class='Words'><img alt='Icon' src='{iconURL}' border='0' align='left' height='60' width='60'>" +
+                    "<font color='white'>{html}</font></div><br clear='ALL'>";
                 return MessagePreview;
             }(SSEventPreviewBase));
             SSPreview.MessagePreview = MessagePreview;
@@ -526,8 +630,8 @@ var Program;
                         { elem: this.titleBox, eventType: "keyup" }]);
                 }
                 PartyBBSPreview.prototype.FormatPreviewHTML = function (template, source) {
-                    var html = SSStatic.FinalizeUserDescriptionAsHTML(source.text);
-                    html = SSStatic.ReplaceIconDescriptionToTag(html, this.iconURLArray);
+                    var html = SSSettings.UserExpressionToHTML(source.text);
+                    html = this.sss.ReplaceIconTagToHTML(html);
                     return Utility.String.format(template, { title: source.title, name: source.name, html: html });
                 };
                 PartyBBSPreview.prototype.Update = function () {
@@ -551,8 +655,8 @@ var Program;
                     _super.apply(this, arguments);
                 }
                 DiaryPreview.prototype.FormatPreviewHTML = function (template, source) {
-                    var html = SSStatic.FinalizeUserDescriptionAsHTML(source);
-                    html = SSStatic.ReplaceIconDescriptionToTag(html, this.iconURLArray);
+                    var html = SSSettings.UserExpressionToHTML(source);
+                    html = this.sss.ReplaceIconTagToHTML(html);
                     return Utility.String.format(template, { html: html });
                 };
                 DiaryPreview.prototype.Update = function () {
@@ -570,6 +674,5 @@ var Program;
             SSPreview.DiaryPreview = DiaryPreview;
         })(SSPreview = SS.SSPreview || (SS.SSPreview = {}));
     })(SS || (SS = {}));
-    SS.Pages.RunSuitableScriptForCurrentPage();
-    console.log(document.location.pathname, SS.SSStatic.LoadNickname(), SS.SSStatic.LoadIconURLArray());
+    SS.Pages.RunSuitableScriptForCurrentPage(new SS.SSSettings());
 })(Program || (Program = {}));
