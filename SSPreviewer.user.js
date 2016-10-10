@@ -5,7 +5,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js
-// @version     0.1.007
+// @version     0.1.008
 // @grant       none
 // ==/UserScript==
 //
@@ -276,7 +276,7 @@ var Program;
                     Source: source
                 };
             };
-            //読み込めなかった場合eno0扱い
+            // 読み込めなかった場合eno0扱い
             SSSettings.ReadPNoByCookie = function () {
                 var pno = $.cookie("pno");
                 if (pno === null) {
@@ -509,10 +509,6 @@ var Program;
                 }
             };
         })(Pages = SS.Pages || (SS.Pages = {}));
-        // アイコン取得について: 少なくともログイン経験があればPNo.はCookieから取得できる。その状態で結果を開いた時にアイコンURL配列を取得する？
-        // プレビューのインスタンス生成時にコンストラクタが要求すべき
-        //
-        // デフォルト愛称の取得も同様
         var SSPreview;
         (function (SSPreview) {
             var SSEventPreviewBase = (function (_super) {
@@ -566,7 +562,7 @@ var Program;
                 // }
                 SerifPreview.TEMPLATE_CONTAINER = "<div name='Preview'>{previewBodyHTML}</div>";
                 SerifPreview.TEMPLATE_ONEICON = "<div name='Words' class='Words'><img alt='Icon' src='{iconURL}' border='0' align='left' height='60' width='60'>" +
-                    "<font color='white'>{name}「{html}」</font></div><br clear='ALL'>";
+                    "<font class='BB'>{name}<br></font><font color='white'>「{html}」</font></div><br clear='ALL'>";
                 SerifPreview.TEMPLATE_ONEICON_NOBRACKETS = "<div name='Words' class='Words'><img alt='Icon' src='{iconURL}' border='0' align='left' height='60' width='60'>" +
                     "<font color='white'>{html}</font></div><br clear='ALL'>";
                 return SerifPreview;
