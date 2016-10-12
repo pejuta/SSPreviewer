@@ -5,7 +5,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js
-// @version     0.1.009
+// @version     0.1.010
 // @grant       none
 // ==/UserScript==
 //
@@ -151,7 +151,7 @@ var Program;
             return EventBasedPreview;
         }());
         Preview.EventBasedPreview = EventBasedPreview;
-    })(Preview = Program.Preview || (Program.Preview = {}));
+    })(Preview || (Preview = {}));
     var SS;
     (function (SS) {
         var SSSettings = (function () {
@@ -375,12 +375,12 @@ var Program;
                     }
                     else if (texts[ti - 4] === "@@@") {
                         // @@@ or @@@/\d/
-                        iconNumber = (texts[ti - 2] === undefined) ? -1 /* アイコンなし */ : parseInt(texts[ti - 1]);
+                        iconNumber = (texts[ti - 2] === undefined) ? -1 /* アイコンなし */ : parseInt(texts[ti - 2]);
                         enableAt3Mode = true;
                     }
                     else {
                         // @changedName@ or @changedName@/\d/
-                        iconNumber = (texts[ti - 2] === undefined) ? 0 /* デフォルトアイコン番号 */ : parseInt(texts[ti - 1]);
+                        iconNumber = (texts[ti - 2] === undefined) ? 0 /* デフォルトアイコン番号 */ : parseInt(texts[ti - 2]);
                         changedName = texts[ti - 3];
                         enableAt3Mode = false;
                     }
