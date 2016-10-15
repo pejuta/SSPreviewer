@@ -5,7 +5,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js
-// @version     0.1.010
+// @version     0.1.011
 // @grant       none
 // ==/UserScript==
 //
@@ -353,7 +353,10 @@ var Program;
                 // source: @name@,      capture: 5n + [-4:@name@,    -3:name,      -2:undefined,  -1:undefined, 0: bodyText]
                 // source: @name@/\d+/, capture: 5n + [-4:@name@,    -3:name,      -2:iconNum,    -1:undefined, 0: bodyText]
                 var defaultIconNumber = at3ModeAsDefault ? -1 : 0;
-                var texts = source.split(/(?:(@@@|@([^<@]+)@)(?:\/(\d+)\/)?|\/(\d+)\/)/g);
+                // @name@周りの正規表現が複雑なのはname部分にアイコンタグ/\d+/を入れ子にされるのを防止するため。
+                // /1/を先にsplitしてから@@@をsplitするように、二段階で処理する方法よりこっちの方が変更実装が楽だった。
+                // これ以上手を加える場合は正規表現を簡単にして段階式にsplitする方法を採用すべき
+                var texts = source.split(/(?:(@@@|@((?:[^\/<@]|\/+\d*(?:(?=@)|[^\d\/<@]))+)@)(?:\/(\d+)\/)?|\/(\d+)\/)/g);
                 if (texts.length === 1) {
                     return [new ParsedExpression({ enableAt3Mode: at3ModeAsDefault, iconNumber: defaultIconNumber, text: source })];
                 }
@@ -368,21 +371,25 @@ var Program;
                     }
                     var changedName = null;
                     var enableAt3Mode = at3ModeAsDefault;
-                    var iconNumber = void 0;
+                    var strIconNumber = void 0;
                     if (texts[ti - 4] === undefined) {
                         // /\d/
-                        iconNumber = parseInt(texts[ti - 1]);
+                        strIconNumber = texts[ti - 1];
                     }
                     else if (texts[ti - 4] === "@@@") {
                         // @@@ or @@@/\d/
-                        iconNumber = (texts[ti - 2] === undefined) ? -1 /* アイコンなし */ : parseInt(texts[ti - 2]);
+                        strIconNumber = texts[ti - 2];
                         enableAt3Mode = true;
                     }
                     else {
                         // @changedName@ or @changedName@/\d/
-                        iconNumber = (texts[ti - 2] === undefined) ? 0 /* デフォルトアイコン番号 */ : parseInt(texts[ti - 2]);
+                        strIconNumber = texts[ti - 2];
                         changedName = texts[ti - 3];
                         enableAt3Mode = false;
+                    }
+                    var iconNumber = enableAt3Mode ? -1 : 0;
+                    if (strIconNumber !== undefined) {
+                        iconNumber = parseInt(strIconNumber);
                     }
                     exps.push(new ParsedExpression({
                         enableAt3Mode: enableAt3Mode, changedName: changedName, iconNumber: iconNumber, text: text
@@ -658,6 +665,22 @@ var Program;
                 };
                 return CharacterSettings;
             }(Page));
+            var Community = (function (_super) {
+                __extends(Community, _super);
+                function Community(sss) {
+                    _super.call(this, sss);
+                    this.Init();
+                }
+                Community.prototype.Init = function () {
+                    var communityCaptionBox = $("textarea")[0];
+                    var communityCaptionPreview = new SSPreview.DiaryPreview({
+                        insertAfter: communityCaptionBox,
+                        textbox: communityCaptionBox,
+                        sss: this.sss
+                    });
+                };
+                return Community;
+            }(Page));
             Pages.RunSuitableScriptForCurrentPage = function (sss) {
                 var pages = {
                     "/d/mainaction.aspx": Main,
@@ -668,7 +691,8 @@ var Program;
                     "/d/battlemessage.aspx": BattleWords,
                     "/d/messageaction.aspx": Message,
                     "/d/commesaction.aspx": GroupMessage,
-                    "/d/chara.aspx": CharacterSettings
+                    "/d/chara.aspx": CharacterSettings,
+                    "/d/com.aspx": Community,
                 };
                 new AllPages(sss);
                 var path = document.location.pathname;
