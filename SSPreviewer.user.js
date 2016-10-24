@@ -4,7 +4,7 @@
 // @description 何かのプレビューを表示する
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.013
+// @version     0.1.014
 // @grant       none
 // ==/UserScript==
 //
@@ -19,16 +19,206 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var JQueryUtil = (function () {
-    function JQueryUtil() {
-    }
+var JQueryUtil;
+(function (JQueryUtil) {
     JQueryUtil.replaceTo = function (from, to) {
         var $to = $(to);
         $(from).replaceWith($to);
         return $to;
     };
-    return JQueryUtil;
+    var CustomEvent = (function () {
+        function CustomEvent(name, callback) {
+            var _this = this;
+            this.name = name;
+            this.callback = callback;
+            this._wrappedCallback = function (e) {
+                var args = [];
+                for (var _i = 1; _i < arguments.length; _i++) {
+                    args[_i - 1] = arguments[_i];
+                }
+                if (_this.callback) {
+                    _this.callback(e, args);
+                }
+                $(_this).triggerHandler(_this.name);
+            };
+        }
+        Object.defineProperty(CustomEvent.prototype, "Name", {
+            get: function () {
+                return this.name;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        CustomEvent.prototype.RegisterEvent = function (arg, eventType) {
+            if (arg instanceof jQuery) {
+                this.evts = [{ target: arg, eventType: eventType }];
+            }
+            else {
+                this.evts = arg;
+            }
+            for (var _i = 0, _a = this.evts; _i < _a.length; _i++) {
+                var evt = _a[_i];
+                $(evt.target).on(evt.eventType, this._wrappedCallback);
+            }
+            return this;
+        };
+        CustomEvent.prototype.UnregisterEvent = function (arg, eventType) {
+            var currentEvts = this.evts;
+            if (arg === undefined) {
+                for (var _i = 0, currentEvts_1 = currentEvts; _i < currentEvts_1.length; _i++) {
+                    var evt = currentEvts_1[_i];
+                    $(evt.target).off(evt.eventType, this._wrappedCallback);
+                }
+                this.evts = [];
+                return this;
+            }
+            var seekedEvts;
+            if (arg instanceof jQuery) {
+                seekedEvts = [{ target: arg, eventType: eventType }];
+            }
+            else {
+                seekedEvts = arg;
+            }
+            var newEvts = [];
+            var removedEvts = [];
+            for (var eri = currentEvts.length - 1; eri >= 0; eri--) {
+                for (var sri = seekedEvts.length - 1; sri >= 0; sri--) {
+                    var e = currentEvts[eri];
+                    var se = seekedEvts[sri];
+                    if (se.target.is(e.target)) {
+                        removedEvts.push(e);
+                        break;
+                    }
+                    if (sri === 0) {
+                        newEvts.push(e);
+                    }
+                }
+            }
+            for (var _a = 0, removedEvts_1 = removedEvts; _a < removedEvts_1.length; _a++) {
+                var evt = removedEvts_1[_a];
+                $(evt.target).off(evt.eventType, this._wrappedCallback);
+            }
+            this.evts = newEvts;
+            return this;
+        };
+        CustomEvent.prototype.Dispose = function () {
+            this.UnregisterEvent();
+        };
+        return CustomEvent;
+    }());
+    JQueryUtil.CustomEvent = CustomEvent;
+})(JQueryUtil || (JQueryUtil = {}));
+var Timer = (function () {
+    function Timer() {
+        this.date_start = 0;
+        this.time_ms = 0;
+        this.resetTimeWhenStarting = false;
+    }
+    Object.defineProperty(Timer.prototype, "Time_ms", {
+        get: function () {
+            return this.time_ms + Date.now() - this.date_start;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Timer.prototype, "isRunning", {
+        get: function () {
+            return !!this.date_start;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Timer.prototype.Start = function () {
+        if (this.isRunning && !this.resetTimeWhenStarting) {
+            return;
+        }
+        if (this.resetTimeWhenStarting) {
+            this.ResetTime();
+        }
+        this.date_start = Date.now();
+        return this;
+    };
+    Timer.prototype.Stop = function () {
+        return this.Pause().ResetTime();
+    };
+    Timer.prototype.Pause = function () {
+        if (!this.isRunning) {
+            return;
+        }
+        this.time_ms += Date.now() - this.date_start;
+        this.date_start = 0;
+        return this;
+    };
+    Timer.prototype.ResetTime = function () {
+        if (this.isRunning) {
+            this.date_start = Date.now();
+        }
+        else {
+            this.date_start = 0;
+        }
+        this.time_ms = 0;
+        return this;
+    };
+    Timer.prototype.PrintTime = function () {
+        console.log("time(ms): " + this.Time_ms);
+        return this;
+    };
+    return Timer;
 }());
+var TimerEvent = (function (_super) {
+    __extends(TimerEvent, _super);
+    function TimerEvent(afterPeriod, period_ms) {
+        _super.call(this);
+        this.afterPeriod = afterPeriod;
+        this.period_ms = period_ms;
+        this.id = 0;
+    }
+    TimerEvent.prototype.setCallbackArg = function (a) {
+        if (a === undefined) {
+            return;
+        }
+        this.callbackArg = a;
+    };
+    TimerEvent.prototype.Start = function (callbackArg) {
+        this.setCallbackArg(callbackArg);
+        if (!this.isRunning) {
+            var period_ms = this.period_ms - this.time_ms;
+            if (period_ms < 0) {
+                period_ms = 0;
+            }
+            this.id = setTimeout(this.afterPeriod, period_ms, callbackArg);
+        }
+        _super.prototype.Start.call(this);
+        return this;
+    };
+    TimerEvent.prototype.Stop = function (callsCallback, newCallbackArg) {
+        if (callsCallback === void 0) { callsCallback = false; }
+        if (callsCallback) {
+            this.setCallbackArg(newCallbackArg);
+            this.afterPeriod((newCallbackArg === undefined ? this.callbackArg : newCallbackArg));
+        }
+        return this.Pause().ResetTime();
+    };
+    TimerEvent.prototype.Pause = function () {
+        if (!this.isRunning) {
+            return;
+        }
+        clearTimeout(this.id);
+        this.id = 0;
+        _super.prototype.Pause.call(this);
+        return this;
+    };
+    TimerEvent.prototype.ResetTime = function (newCallbackArg) {
+        this.setCallbackArg(newCallbackArg);
+        if (this.isRunning) {
+            clearTimeout(this.id);
+            this.id = setTimeout(this.afterPeriod, this.period_ms, (newCallbackArg === undefined ? this.callbackArg : newCallbackArg));
+        }
+        _super.prototype.ResetTime.call(this);
+        return this;
+    };
+    return TimerEvent;
+}(Timer));
 var EvtBasedPreview;
 (function (EvtBasedPreview_1) {
     (function (InsertionMode) {
@@ -39,21 +229,37 @@ var EvtBasedPreview;
     })(EvtBasedPreview_1.InsertionMode || (EvtBasedPreview_1.InsertionMode = {}));
     var InsertionMode = EvtBasedPreview_1.InsertionMode;
     var EvtBasedPreview = (function () {
-        function EvtBasedPreview(insTarget, insMode) {
+        function EvtBasedPreview(arg) {
             var _this = this;
-            this.insTarget = insTarget;
-            this.insMode = insMode;
             this.isDisabled = false;
             this._eventCallback = function (eventObject) {
                 var args = [];
                 for (var _i = 1; _i < arguments.length; _i++) {
                     args[_i - 1] = arguments[_i];
                 }
-                if (!_this.isDisabled) {
-                    _this.Update();
+                if (_this.isDisabled) {
+                    return false;
                 }
+                _this.timerEvt.Start();
+                return true;
             };
+            this.onUpdate = new JQueryUtil.CustomEvent("updatePreview", this._eventCallback);
+            this.insTarget = arg.insTarget;
+            this.insMode = arg.insMode;
+            this._delay_ms = arg.delay_ms || EvtBasedPreview._DEFAULT_DELAY_MS;
+            this.timerEvt = new TimerEvent(function () { _this.Update(); }, this._delay_ms);
+            this.timerEvt.resetTimeWhenStarting = true;
         }
+        Object.defineProperty(EvtBasedPreview.prototype, "Delay_ms", {
+            get: function () {
+                return this._delay_ms;
+            },
+            set: function (n) {
+                this._delay_ms = n;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(EvtBasedPreview.prototype, "IsDisabled", {
             get: function () {
                 return this.isDisabled;
@@ -73,56 +279,13 @@ var EvtBasedPreview;
             this.isDisabled = false;
             return this.Update();
         };
-        EvtBasedPreview.prototype.RegisterEvent = function (arg, eventType) {
-            if (arg instanceof HTMLElement) {
-                this.evts = [{ elem: arg, eventType: eventType }];
-            }
-            else {
-                this.evts = arg;
-            }
-            for (var _i = 0, _a = this.evts; _i < _a.length; _i++) {
-                var evt = _a[_i];
-                $(evt.elem).on(evt.eventType, this._eventCallback);
-            }
-            return this;
-        };
-        EvtBasedPreview.prototype.UnregisterEvent = function (arg, eventType) {
-            var currentEvts = this.evts;
-            this.evts = [];
-            if (arg === undefined) {
-                for (var _i = 0, currentEvts_1 = currentEvts; _i < currentEvts_1.length; _i++) {
-                    var evt = currentEvts_1[_i];
-                    $(evt.elem).off(evt.eventType, this._eventCallback);
-                }
-                return this;
-            }
-            var seekedEvts;
-            if (arg instanceof HTMLElement) {
-                seekedEvts = [{ elem: arg, eventType: eventType }];
-            }
-            else {
-                seekedEvts = arg;
-            }
-            var removedEvts = [];
-            for (var eri = currentEvts.length - 1; eri >= 0; eri--) {
-                for (var sri = seekedEvts.length - 1; sri >= 0; sri--) {
-                    var e = currentEvts[eri];
-                    var se = seekedEvts[sri];
-                    if (se.elem === e.elem && se.eventType === e.eventType) {
-                        removedEvts.push(e);
-                        break;
-                    }
-                    if (sri === 0) {
-                        this.evts.push(e);
-                    }
-                }
-            }
-            for (var _a = 0, removedEvts_1 = removedEvts; _a < removedEvts_1.length; _a++) {
-                var evt = removedEvts_1[_a];
-                $(evt.elem).off(evt.eventType, this._eventCallback);
-            }
-            return this;
-        };
+        Object.defineProperty(EvtBasedPreview.prototype, "OnUpdate", {
+            get: function () {
+                return this.onUpdate;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(EvtBasedPreview.prototype, "PreviewElement", {
             get: function () {
                 return this.preview;
@@ -168,8 +331,10 @@ var EvtBasedPreview;
             return this;
         };
         EvtBasedPreview.prototype.Dispose = function () {
-            this.Disable().UnregisterEvent().Hide();
+            this.onUpdate.Dispose();
+            this.Disable().Hide();
         };
+        EvtBasedPreview._DEFAULT_DELAY_MS = 0;
         return EvtBasedPreview;
     }());
     EvtBasedPreview_1.EvtBasedPreview = EvtBasedPreview;
@@ -382,6 +547,7 @@ var SS;
             this.template = args.template || ExpFormatter._DEFAULT_TEMPLATE;
             this.separator = args.separator || "";
             this.at3ModeAsDefault = args.at3ModeAsDefault || false;
+            this.randomizesDiceTag = args.randomizesDiceTag || false;
         }
         Object.defineProperty(ExpFormatter.prototype, "Templates", {
             get: function () {
@@ -411,16 +577,21 @@ var SS;
             enumerable: true,
             configurable: true
         });
-        ExpFormatter.GenerateDiceTag = function () {
-            var result = Math.floor(Math.random() * 6) + 1;
-            return "<img alt=\"dice\" src=\"" + ExpFormatter._DEFAULT_IMG_DIR + "d" + result + ".png\" border=\"0\" height=\"20\" width=\"20\">";
+        ExpFormatter.GenerateDiceTag = function (randomize) {
+            if (randomize === void 0) { randomize = false; }
+            var resultNum = 1;
+            if (randomize) {
+                resultNum = Math.floor(Math.random() * 6) + 1;
+            }
+            return StringUtil.format(ExpFormatter._DEFAULT_DICE_TEMPLATE, { imgDir: ExpFormatter._DEFAULT_IMG_DIR, resultNum: resultNum });
         };
         ExpFormatter.prototype.Exec = function (source) {
+            var _this = this;
             var html = HTMLUtil.escape(source);
             html = StringUtil.replaceLoop(html, ExpFormatter.reReplace_EscapedDecoTag, "<span class='$1'>$2</span>");
             html = this.Format(ExpAnalyzer.ParseExpression(html, this.at3ModeAsDefault));
             html = html.replace(ExpFormatter.reReplace_EscapedDiceTag, function (match) {
-                return ExpFormatter.GenerateDiceTag();
+                return ExpFormatter.GenerateDiceTag(_this.randomizesDiceTag);
             });
             html = HTMLUtil.replaceLineBreaksToBRTag(html);
             html = HTMLUtil.UnescapeBRTag(html);
@@ -455,6 +626,7 @@ var SS;
             Body_At3ModeAndIcon: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"><IMG border = 0 alt=Icon align=left src=\"{iconURL}\" width=60 height=60></td><td class=\"String\">{bodyHTML}</td></tr></table>",
             Body_At3Mode: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"></td><td class=\"String\">{bodyHTML}</td></tr></table>"
         };
+        ExpFormatter._DEFAULT_DICE_TEMPLATE = "<img alt=\"dice\" src=\"{imgDir}d{resultNum}.png\" border=\"0\" height=\"20\" width=\"20\">";
         ExpFormatter._DEFAULT_IMG_DIR = "http://www.sssloxia.jp/p/";
         ExpFormatter.reReplace_EscapedDecoTag = new RegExp(HTMLUtil.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "g");
         ExpFormatter.reReplace_EscapedDiceTag = new RegExp(HTMLUtil.escape("<D>"), "g");
@@ -571,69 +743,73 @@ var SS;
     SS.Page = Page;
     var Preview;
     (function (Preview) {
-        var SSEventPreviewBase = (function (_super) {
-            __extends(SSEventPreviewBase, _super);
-            function SSEventPreviewBase(args) {
-                _super.call(this, args.insTarget, args.insMode);
-                this.textbox = args.textbox;
-                this.ssp = args.ssp;
-                this.formatter = args.formatter;
-                if (args.hasOwnProperty("template_container")) {
-                    this.template_container = args.template_container;
+        Preview.randomizesDiceTagResult = false;
+        var SSEvtPreviewBase = (function (_super) {
+            __extends(SSEvtPreviewBase, _super);
+            function SSEvtPreviewBase(arg) {
+                _super.call(this, { insTarget: arg.insTarget, insMode: arg.insMode, delay_ms: SSEvtPreviewBase.DELAY_MS });
+                this.textbox = arg.textbox;
+                this.ssp = arg.ssp;
+                this.formatter = arg.formatter;
+                if (arg.hasOwnProperty("template_container")) {
+                    this.template_container = arg.template_container;
                 }
                 else {
                     this.template_container = "<div class='preview'>{html}</div>";
                 }
-                this.RegisterEvent(this.textbox, "keyup");
+                this.OnUpdate.RegisterEvent($(this.textbox), "keyup");
             }
-            SSEventPreviewBase.prototype.Update = function () {
+            SSEvtPreviewBase.prototype.Update = function (extraFormatArg) {
                 var source = this.textbox.value;
                 if (source === "") {
                     return this.Hide();
                 }
-                var previewHTML = StringUtil.format(this.template_container, { html: this.formatter.Exec(source) });
+                var formatArg = extraFormatArg ? Object.create(extraFormatArg) : {};
+                formatArg["html"] = this.formatter.Exec(source);
+                var previewHTML = StringUtil.format(this.template_container, formatArg);
                 this.OverwritePreview(previewHTML);
                 return this;
             };
-            return SSEventPreviewBase;
+            SSEvtPreviewBase.DELAY_MS = 0;
+            return SSEvtPreviewBase;
         }(EvtBasedPreview.EvtBasedPreview));
-        Preview.SSEventPreviewBase = SSEventPreviewBase;
+        Preview.SSEvtPreviewBase = SSEvtPreviewBase;
         var SerifPreview = (function (_super) {
             __extends(SerifPreview, _super);
-            function SerifPreview(args) {
-                var formatter = new SS.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: false, template: SerifPreview.TEMPLATE });
+            function SerifPreview(arg) {
+                var formatter = new SS.ExpFormatter({ ssp: arg.ssp, at3ModeAsDefault: false, template: SerifPreview.TEMPLATE, randomizesDiceTag: Preview.randomizesDiceTagResult });
                 _super.call(this, {
-                    insTarget: args.insTarget,
-                    insMode: args.insMode,
-                    textbox: args.textbox,
-                    ssp: args.ssp,
+                    insTarget: arg.insTarget,
+                    insMode: arg.insMode,
+                    textbox: arg.textbox,
+                    ssp: arg.ssp,
                     formatter: formatter
                 });
             }
             SerifPreview.TEMPLATE = null;
             return SerifPreview;
-        }(SSEventPreviewBase));
+        }(SSEvtPreviewBase));
         Preview.SerifPreview = SerifPreview;
         var MessagePreview = (function (_super) {
             __extends(MessagePreview, _super);
-            function MessagePreview(args) {
-                var formatter = new SS.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: false, template: MessagePreview.TEMPLATE });
+            function MessagePreview(arg) {
+                var formatter = new SS.ExpFormatter({ ssp: arg.ssp, at3ModeAsDefault: false, template: MessagePreview.TEMPLATE, randomizesDiceTag: Preview.randomizesDiceTagResult });
                 _super.call(this, {
-                    insTarget: args.insTarget,
-                    insMode: args.insMode,
-                    textbox: args.textbox,
-                    ssp: args.ssp,
+                    insTarget: arg.insTarget,
+                    insMode: arg.insMode,
+                    textbox: arg.textbox,
+                    ssp: arg.ssp,
                     formatter: formatter
                 });
             }
             MessagePreview.TEMPLATE = null;
             return MessagePreview;
-        }(SSEventPreviewBase));
+        }(SSEvtPreviewBase));
         Preview.MessagePreview = MessagePreview;
         var PartyBBSPreview = (function (_super) {
             __extends(PartyBBSPreview, _super);
             function PartyBBSPreview(args) {
-                var formatter = new SS.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: true, template: PartyBBSPreview.TEMPLATE });
+                var formatter = new SS.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: true, template: PartyBBSPreview.TEMPLATE, randomizesDiceTag: Preview.randomizesDiceTagResult });
                 _super.call(this, {
                     insTarget: args.insTarget,
                     insMode: args.insMode,
@@ -643,31 +819,27 @@ var SS;
                 });
                 this.nameBox = args.nameBox;
                 this.titleBox = args.titleBox;
-                this.RegisterEvent([
-                    { elem: this.nameBox, eventType: "keyup" },
-                    { elem: this.titleBox, eventType: "keyup" }
+                this.OnUpdate.RegisterEvent([
+                    { target: $(this.nameBox), eventType: "keyup" },
+                    { target: $(this.titleBox), eventType: "keyup" }
                 ]);
             }
-            PartyBBSPreview.prototype.UpdateContainer = function () {
+            PartyBBSPreview.prototype.Update = function () {
+                this.template_container = PartyBBSPreview.TEMPLATE_CONTAINER;
                 var title = this.titleBox.value || "無題";
                 var name = this.nameBox.value;
-                this.template_container = StringUtil.format(PartyBBSPreview.TEMPLATE_CONTAINER, { title: title, name: name });
-                return this;
-            };
-            PartyBBSPreview.prototype.Update = function () {
-                this.UpdateContainer();
-                _super.prototype.Update.call(this);
+                _super.prototype.Update.call(this, { title: title, name: name });
                 return this;
             };
             PartyBBSPreview.TEMPLATE = null;
             PartyBBSPreview.TEMPLATE_CONTAINER = "<div class='preview'><div class='BackBoard'><b>xxx ：{title}</b> &nbsp;&nbsp;{name}&#12288;（20xx/xx/xx xx:xx:xx） <br> <br>{html}<br><br><br clear='ALL'></div></div>";
             return PartyBBSPreview;
-        }(SSEventPreviewBase));
+        }(SSEvtPreviewBase));
         Preview.PartyBBSPreview = PartyBBSPreview;
         var DiaryPreview = (function (_super) {
             __extends(DiaryPreview, _super);
             function DiaryPreview(args) {
-                var formatter = new SS.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: true, template: DiaryPreview.TEMPLATE });
+                var formatter = new SS.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: true, template: DiaryPreview.TEMPLATE, randomizesDiceTag: Preview.randomizesDiceTagResult });
                 _super.call(this, { insTarget: args.insTarget,
                     insMode: args.insMode,
                     textbox: args.textbox,
@@ -677,29 +849,30 @@ var SS;
                 });
                 this.countsChars = args.countsChars || false;
             }
-            DiaryPreview.UpdateContainerAsCharsCount = function (charCount) {
-                var charCountHTML;
-                if (charCount > DiaryPreview.MAXIMUM_CHARS) {
-                    charCountHTML = "<span class='char_count char_count_over'>" + charCount + "</span>";
-                }
-                else {
-                    charCountHTML = "<span class='char_count'>" + charCount + "</span>";
-                }
-                return StringUtil.format(DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR, { charCount: charCountHTML });
-            };
-            DiaryPreview.prototype.UpdateContainer = function () {
+            DiaryPreview.prototype.UpdateContainer = function (arg) {
                 if (this.countsChars) {
                     var charCount = SS.ExpAnalyzer.CountLengthOfExpChars(this.textbox.value);
-                    this.template_container = DiaryPreview.UpdateContainerAsCharsCount(charCount);
+                    this.template_container = DiaryPreview.SelectCharCountContainer(charCount);
                 }
                 else {
                     this.template_container = DiaryPreview.TEMPLATE_CONTAINER;
                 }
                 return this;
             };
+            DiaryPreview.SelectCharCountContainer = function (charCount) {
+                var charCountHTML;
+                if (charCount > DiaryPreview.MAXIMUM_CHARS) {
+                    charCountHTML = "<span class='char_count char_count_over'>{charCount}</span>";
+                }
+                else {
+                    charCountHTML = "<span class='char_count'>{charCount}</span>";
+                }
+                return StringUtil.format(DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR, { charCount: charCountHTML });
+            };
             DiaryPreview.prototype.Update = function () {
-                this.UpdateContainer();
-                _super.prototype.Update.call(this);
+                var charCount = SS.ExpAnalyzer.CountLengthOfExpChars(this.textbox.value);
+                this.UpdateContainer({ charCount: charCount });
+                _super.prototype.Update.call(this, { charCount: charCount });
                 return this;
             };
             DiaryPreview.TEMPLATE = null;
@@ -707,7 +880,7 @@ var SS;
             DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR = "<div class='preview'><p class='char_count_line'>{charCount} / 5000</p><div class='tablestyle3'>{html}</div></div>";
             DiaryPreview.MAXIMUM_CHARS = 5000;
             return DiaryPreview;
-        }(SSEventPreviewBase));
+        }(SSEvtPreviewBase));
         Preview.DiaryPreview = DiaryPreview;
     })(Preview = SS.Preview || (SS.Preview = {}));
 })(SS || (SS = {}));
@@ -744,6 +917,7 @@ var Pages;
 })(Pages || (Pages = {}));
 var Program;
 (function (Program) {
+    SS.Preview.SSEvtPreviewBase.DELAY_MS = 100;
     var InitAllTextboxesWithSerifPreview = function (ssp) {
         $("textarea").each(function (i, e) {
             var preview = new SS.Preview.SerifPreview({
