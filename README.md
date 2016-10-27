@@ -12,7 +12,7 @@
 
 ## インストール方法
 SSPreviewer.user.js -> Raw または [こちら](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.user.js) をクリック後、
-Greasemonkey/Tampermonkeyに従ってください。　　
+Greasemonkey/Tampermonkeyに従ってください。  
 軽量版は [こちら](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.min.user.js)
 
 ## 使用の準備
