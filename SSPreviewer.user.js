@@ -1,31 +1,31 @@
 // ==UserScript==
 // @name        SSPreviewer (beta)
 // @namespace   11powder
-// @description 何かのプレビューを表示する
+// @description 七海で色々なプレビューを表示する
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
+// @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.014
+// @version     0.1.015
 // @grant       none
 // ==/UserScript==
 //
 // !!!:第二回更新時に向けてのチェックリスト。現在は暫定的な仕様のため実際の動作と異なる可能性がある
-// セリフの冒頭に@@, @@@@とつけたときの挙動
-// メッセージの冒頭に@@, @@@, @@@@と付けた時の挙動
-// 文字数制限の計算方法。タグや段落が何文字に換算されるかをチェックすること
 // 日記/メッセージ/台詞の正確なフォーマット
-// 改行は普通に使用できるはずだけど念のために確認しておくこと。BRタグは使用できるのかどうかも。
+// 改行の変更後の仕様を要確認。
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var JQueryUtil;
-(function (JQueryUtil) {
-    JQueryUtil.replaceTo = function (from, to) {
+define("lib/util/jquery", ["require", "exports"], function (require, exports) {
+    "use strict";
+    function replaceTo(from, to) {
         var $to = $(to);
         $(from).replaceWith($to);
         return $to;
-    };
+    }
+    exports.replaceTo = replaceTo;
+    ;
     var CustomEvent = (function () {
         function CustomEvent(name, callback) {
             var _this = this;
@@ -106,128 +106,133 @@ var JQueryUtil;
         };
         return CustomEvent;
     }());
-    JQueryUtil.CustomEvent = CustomEvent;
-})(JQueryUtil || (JQueryUtil = {}));
-var Timer = (function () {
-    function Timer() {
-        this.date_start = 0;
-        this.time_ms = 0;
-        this.resetTimeWhenStarting = false;
-    }
-    Object.defineProperty(Timer.prototype, "Time_ms", {
-        get: function () {
-            return this.time_ms + Date.now() - this.date_start;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Timer.prototype, "isRunning", {
-        get: function () {
-            return !!this.date_start;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Timer.prototype.Start = function () {
-        if (this.isRunning && !this.resetTimeWhenStarting) {
-            return;
-        }
-        if (this.resetTimeWhenStarting) {
-            this.ResetTime();
-        }
-        this.date_start = Date.now();
-        return this;
-    };
-    Timer.prototype.Stop = function () {
-        return this.Pause().ResetTime();
-    };
-    Timer.prototype.Pause = function () {
-        if (!this.isRunning) {
-            return;
-        }
-        this.time_ms += Date.now() - this.date_start;
-        this.date_start = 0;
-        return this;
-    };
-    Timer.prototype.ResetTime = function () {
-        if (this.isRunning) {
-            this.date_start = Date.now();
-        }
-        else {
+    exports.CustomEvent = CustomEvent;
+});
+define("lib/util/timer", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var Timer = (function () {
+        function Timer() {
             this.date_start = 0;
+            this.time_ms = 0;
+            this.resetTimeWhenStarting = false;
         }
-        this.time_ms = 0;
-        return this;
-    };
-    Timer.prototype.PrintTime = function () {
-        console.log("time(ms): " + this.Time_ms);
-        return this;
-    };
-    return Timer;
-}());
-var TimerEvent = (function (_super) {
-    __extends(TimerEvent, _super);
-    function TimerEvent(afterPeriod, period_ms) {
-        _super.call(this);
-        this.afterPeriod = afterPeriod;
-        this.period_ms = period_ms;
-        this.id = 0;
-    }
-    TimerEvent.prototype.setCallbackArg = function (a) {
-        if (a === undefined) {
-            return;
-        }
-        this.callbackArg = a;
-    };
-    TimerEvent.prototype.Start = function (callbackArg) {
-        this.setCallbackArg(callbackArg);
-        if (!this.isRunning) {
-            var period_ms = this.period_ms - this.time_ms;
-            if (period_ms < 0) {
-                period_ms = 0;
+        Object.defineProperty(Timer.prototype, "Time_ms", {
+            get: function () {
+                return this.time_ms + Date.now() - this.date_start;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Timer.prototype, "isRunning", {
+            get: function () {
+                return !!this.date_start;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Timer.prototype.Start = function () {
+            if (this.isRunning && !this.resetTimeWhenStarting) {
+                return;
             }
-            this.id = setTimeout(this.afterPeriod, period_ms, callbackArg);
+            if (this.resetTimeWhenStarting) {
+                this.ResetTime();
+            }
+            this.date_start = Date.now();
+            return this;
+        };
+        Timer.prototype.Stop = function () {
+            return this.Pause().ResetTime();
+        };
+        Timer.prototype.Pause = function () {
+            if (!this.isRunning) {
+                return;
+            }
+            this.time_ms += Date.now() - this.date_start;
+            this.date_start = 0;
+            return this;
+        };
+        Timer.prototype.ResetTime = function () {
+            if (this.isRunning) {
+                this.date_start = Date.now();
+            }
+            else {
+                this.date_start = 0;
+            }
+            this.time_ms = 0;
+            return this;
+        };
+        Timer.prototype.PrintTime = function () {
+            console.log("time(ms): " + this.Time_ms);
+            return this;
+        };
+        return Timer;
+    }());
+    exports.Timer = Timer;
+    var TimerEvent = (function (_super) {
+        __extends(TimerEvent, _super);
+        function TimerEvent(afterPeriod, period_ms) {
+            _super.call(this);
+            this.afterPeriod = afterPeriod;
+            this.period_ms = period_ms;
+            this.id = 0;
         }
-        _super.prototype.Start.call(this);
-        return this;
-    };
-    TimerEvent.prototype.Stop = function (callsCallback, newCallbackArg) {
-        if (callsCallback === void 0) { callsCallback = false; }
-        if (callsCallback) {
-            this.setCallbackArg(newCallbackArg);
-            this.afterPeriod((newCallbackArg === undefined ? this.callbackArg : newCallbackArg));
-        }
-        return this.Pause().ResetTime();
-    };
-    TimerEvent.prototype.Pause = function () {
-        if (!this.isRunning) {
-            return;
-        }
-        clearTimeout(this.id);
-        this.id = 0;
-        _super.prototype.Pause.call(this);
-        return this;
-    };
-    TimerEvent.prototype.ResetTime = function (newCallbackArg) {
-        this.setCallbackArg(newCallbackArg);
-        if (this.isRunning) {
+        TimerEvent.prototype.setCallbackArg = function (a) {
+            if (a === undefined) {
+                return;
+            }
+            this.callbackArg = a;
+        };
+        TimerEvent.prototype.Start = function (callbackArg) {
+            this.setCallbackArg(callbackArg);
+            if (!this.isRunning) {
+                var period_ms = this.period_ms - this.time_ms;
+                if (period_ms < 0) {
+                    period_ms = 0;
+                }
+                this.id = setTimeout(this.afterPeriod, period_ms, callbackArg);
+            }
+            _super.prototype.Start.call(this);
+            return this;
+        };
+        TimerEvent.prototype.Stop = function (callsCallback, newCallbackArg) {
+            if (callsCallback === void 0) { callsCallback = false; }
+            if (callsCallback) {
+                this.setCallbackArg(newCallbackArg);
+                this.afterPeriod((newCallbackArg === undefined ? this.callbackArg : newCallbackArg));
+            }
+            return this.Pause().ResetTime();
+        };
+        TimerEvent.prototype.Pause = function () {
+            if (!this.isRunning) {
+                return;
+            }
             clearTimeout(this.id);
-            this.id = setTimeout(this.afterPeriod, this.period_ms, (newCallbackArg === undefined ? this.callbackArg : newCallbackArg));
-        }
-        _super.prototype.ResetTime.call(this);
-        return this;
-    };
-    return TimerEvent;
-}(Timer));
-var EvtBasedPreview;
-(function (EvtBasedPreview_1) {
+            this.id = 0;
+            _super.prototype.Pause.call(this);
+            return this;
+        };
+        TimerEvent.prototype.ResetTime = function (newCallbackArg) {
+            this.setCallbackArg(newCallbackArg);
+            if (this.isRunning) {
+                clearTimeout(this.id);
+                this.id = setTimeout(this.afterPeriod, this.period_ms, (newCallbackArg === undefined ? this.callbackArg : newCallbackArg));
+            }
+            _super.prototype.ResetTime.call(this);
+            return this;
+        };
+        return TimerEvent;
+    }(Timer));
+    exports.TimerEvent = TimerEvent;
+});
+define("lib/eventBasedPreview", ["require", "exports", "lib/util/jquery", "lib/util/timer"], function (require, exports, JQueryUtil, Timer) {
+    "use strict";
     (function (InsertionMode) {
         InsertionMode[InsertionMode["InsertAfter"] = 0] = "InsertAfter";
         InsertionMode[InsertionMode["InsertBefore"] = 1] = "InsertBefore";
         InsertionMode[InsertionMode["AppendTo"] = 2] = "AppendTo";
         InsertionMode[InsertionMode["PrependTo"] = 3] = "PrependTo";
-    })(EvtBasedPreview_1.InsertionMode || (EvtBasedPreview_1.InsertionMode = {}));
-    var InsertionMode = EvtBasedPreview_1.InsertionMode;
+    })(exports.InsertionMode || (exports.InsertionMode = {}));
+    var InsertionMode = exports.InsertionMode;
     var EvtBasedPreview = (function () {
         function EvtBasedPreview(arg) {
             var _this = this;
@@ -247,7 +252,7 @@ var EvtBasedPreview;
             this.insTarget = arg.insTarget;
             this.insMode = arg.insMode;
             this._delay_ms = arg.delay_ms || EvtBasedPreview._DEFAULT_DELAY_MS;
-            this.timerEvt = new TimerEvent(function () { _this.Update(); }, this._delay_ms);
+            this.timerEvt = new Timer.TimerEvent(function () { _this.Update(); }, this._delay_ms);
             this.timerEvt.resetTimeWhenStarting = true;
         }
         Object.defineProperty(EvtBasedPreview.prototype, "Delay_ms", {
@@ -337,12 +342,11 @@ var EvtBasedPreview;
         EvtBasedPreview._DEFAULT_DELAY_MS = 0;
         return EvtBasedPreview;
     }());
-    EvtBasedPreview_1.EvtBasedPreview = EvtBasedPreview;
-})(EvtBasedPreview || (EvtBasedPreview = {}));
-var StringUtil = (function () {
-    function StringUtil() {
-    }
-    StringUtil.replaceLoop = function (searchTarget, searchValue, replaceTo) {
+    exports.EvtBasedPreview = EvtBasedPreview;
+});
+define("lib/util/string", ["require", "exports"], function (require, exports) {
+    "use strict";
+    function replaceLoop(searchTarget, searchValue, replaceTo) {
         if (searchTarget === null || searchTarget === undefined) {
             return searchTarget;
         }
@@ -361,8 +365,9 @@ var StringUtil = (function () {
             }
             strTarget = strTarget.replace(searchValue, replaceTo);
         }
-    };
-    StringUtil.format = function (template, args) {
+    }
+    exports.replaceLoop = replaceLoop;
+    function format(template, args) {
         if (template === null || template === undefined) {
             return template;
         }
@@ -374,11 +379,11 @@ var StringUtil = (function () {
             s = s.replace(new RegExp("\{" + label + "\}", "g"), "" + args[label]);
         }
         return s;
-    };
-    return StringUtil;
-}());
-var HTMLUtil;
-(function (HTMLUtil) {
+    }
+    exports.format = format;
+});
+define("lib/util/html", ["require", "exports"], function (require, exports) {
+    "use strict";
     var escapeMap = {
         "&": "&amp;",
         "'": "&#x27;",
@@ -388,22 +393,28 @@ var HTMLUtil;
         ">": "&gt;"
     };
     var escapeReg = new RegExp("[" + Object.keys(escapeMap).join("") + "]", "g");
-    HTMLUtil.escape = function (s) {
+    function escape(s) {
         if (s === null || s === undefined) {
             return s;
         }
         return ("" + s).replace(escapeReg, function (match) { return escapeMap[match]; });
-    };
-    HTMLUtil.replaceLineBreaksToBRTag = function (html) {
+    }
+    exports.escape = escape;
+    ;
+    function replaceLineBreaksToBRTag(html) {
         return html.replace(/(?:\r\n|\r|\n)/g, "<BR>");
-    };
-    var re_escapedBRTag = new RegExp(HTMLUtil.escape("<BR>"), "g");
-    HTMLUtil.UnescapeBRTag = function (source) {
+    }
+    exports.replaceLineBreaksToBRTag = replaceLineBreaksToBRTag;
+    ;
+    var re_escapedBRTag = new RegExp(escape("<BR>"), "g");
+    function UnescapeBRTag(source) {
         return source.replace(re_escapedBRTag, "<BR>");
-    };
-})(HTMLUtil || (HTMLUtil = {}));
-var SS;
-(function (SS) {
+    }
+    exports.UnescapeBRTag = UnescapeBRTag;
+    ;
+});
+define("lib/ss/config", ["require", "exports", "lib/util/string", "lib/util/html"], function (require, exports, StringUtil, HTMLUtil) {
+    "use strict";
     var SSProfile = (function () {
         function SSProfile(c) {
             if (c) {
@@ -503,7 +514,7 @@ var SS;
         };
         return SSProfile;
     }());
-    SS.SSProfile = SSProfile;
+    exports.SSProfile = SSProfile;
     var ParsedExp = (function () {
         function ParsedExp(arg) {
             this.enableAt3Mode = arg.enableAt3Mode;
@@ -632,7 +643,7 @@ var SS;
         ExpFormatter.reReplace_EscapedDiceTag = new RegExp(HTMLUtil.escape("<D>"), "g");
         return ExpFormatter;
     }());
-    SS.ExpFormatter = ExpFormatter;
+    exports.ExpFormatter = ExpFormatter;
     var ExpAnalyzer = (function () {
         function ExpAnalyzer() {
         }
@@ -682,7 +693,10 @@ var SS;
         };
         return ExpAnalyzer;
     }());
-    SS.ExpAnalyzer = ExpAnalyzer;
+    exports.ExpAnalyzer = ExpAnalyzer;
+});
+define("lib/ss/pageConfig", ["require", "exports"], function (require, exports) {
+    "use strict";
     var PageConfig = (function () {
         function PageConfig() {
         }
@@ -715,7 +729,7 @@ var SS;
         };
         return PageConfig;
     }());
-    SS.PageConfig = PageConfig;
+    exports.PageConfig = PageConfig;
     var Page = (function () {
         function Page(ssp, initializer) {
             this.ssp = ssp;
@@ -740,152 +754,152 @@ var SS;
         });
         return Page;
     }());
-    SS.Page = Page;
-    var Preview;
-    (function (Preview) {
-        Preview.randomizesDiceTagResult = false;
-        var SSEvtPreviewBase = (function (_super) {
-            __extends(SSEvtPreviewBase, _super);
-            function SSEvtPreviewBase(arg) {
-                _super.call(this, { insTarget: arg.insTarget, insMode: arg.insMode, delay_ms: SSEvtPreviewBase.DELAY_MS });
-                this.textbox = arg.textbox;
-                this.ssp = arg.ssp;
-                this.formatter = arg.formatter;
-                if (arg.hasOwnProperty("template_container")) {
-                    this.template_container = arg.template_container;
-                }
-                else {
-                    this.template_container = "<div class='preview'>{html}</div>";
-                }
-                this.OnUpdate.RegisterEvent($(this.textbox), "keyup");
+    exports.Page = Page;
+});
+define("lib/ss/preview", ["require", "exports", "lib/eventBasedPreview", "lib/util/string", "lib/ss/config"], function (require, exports, EvtBasedPreview, StringUtil, Config) {
+    "use strict";
+    exports.randomizesDiceTagResult = false;
+    var SSEvtPreviewBase = (function (_super) {
+        __extends(SSEvtPreviewBase, _super);
+        function SSEvtPreviewBase(arg) {
+            _super.call(this, { insTarget: arg.insTarget, insMode: arg.insMode, delay_ms: SSEvtPreviewBase.DELAY_MS });
+            this.textbox = arg.textbox;
+            this.ssp = arg.ssp;
+            this.formatter = arg.formatter;
+            if (arg.hasOwnProperty("template_container")) {
+                this.template_container = arg.template_container;
             }
-            SSEvtPreviewBase.prototype.Update = function (extraFormatArg) {
-                var source = this.textbox.value;
-                if (source === "") {
-                    return this.Hide();
-                }
-                var formatArg = extraFormatArg ? Object.create(extraFormatArg) : {};
-                formatArg["html"] = this.formatter.Exec(source);
-                var previewHTML = StringUtil.format(this.template_container, formatArg);
-                this.OverwritePreview(previewHTML);
-                return this;
-            };
-            SSEvtPreviewBase.DELAY_MS = 0;
-            return SSEvtPreviewBase;
-        }(EvtBasedPreview.EvtBasedPreview));
-        Preview.SSEvtPreviewBase = SSEvtPreviewBase;
-        var SerifPreview = (function (_super) {
-            __extends(SerifPreview, _super);
-            function SerifPreview(arg) {
-                var formatter = new SS.ExpFormatter({ ssp: arg.ssp, at3ModeAsDefault: false, template: SerifPreview.TEMPLATE, randomizesDiceTag: Preview.randomizesDiceTagResult });
-                _super.call(this, {
-                    insTarget: arg.insTarget,
-                    insMode: arg.insMode,
-                    textbox: arg.textbox,
-                    ssp: arg.ssp,
-                    formatter: formatter
-                });
+            else {
+                this.template_container = "<div class='preview'>{html}</div>";
             }
-            SerifPreview.TEMPLATE = null;
-            return SerifPreview;
-        }(SSEvtPreviewBase));
-        Preview.SerifPreview = SerifPreview;
-        var MessagePreview = (function (_super) {
-            __extends(MessagePreview, _super);
-            function MessagePreview(arg) {
-                var formatter = new SS.ExpFormatter({ ssp: arg.ssp, at3ModeAsDefault: false, template: MessagePreview.TEMPLATE, randomizesDiceTag: Preview.randomizesDiceTagResult });
-                _super.call(this, {
-                    insTarget: arg.insTarget,
-                    insMode: arg.insMode,
-                    textbox: arg.textbox,
-                    ssp: arg.ssp,
-                    formatter: formatter
-                });
+            this.OnUpdate.RegisterEvent($(this.textbox), "keyup");
+        }
+        SSEvtPreviewBase.prototype.Update = function (extraFormatArg) {
+            var source = this.textbox.value;
+            if (source === "") {
+                return this.Hide();
             }
-            MessagePreview.TEMPLATE = null;
-            return MessagePreview;
-        }(SSEvtPreviewBase));
-        Preview.MessagePreview = MessagePreview;
-        var PartyBBSPreview = (function (_super) {
-            __extends(PartyBBSPreview, _super);
-            function PartyBBSPreview(args) {
-                var formatter = new SS.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: true, template: PartyBBSPreview.TEMPLATE, randomizesDiceTag: Preview.randomizesDiceTagResult });
-                _super.call(this, {
-                    insTarget: args.insTarget,
-                    insMode: args.insMode,
-                    textbox: args.textbox,
-                    ssp: args.ssp,
-                    formatter: formatter
-                });
-                this.nameBox = args.nameBox;
-                this.titleBox = args.titleBox;
-                this.OnUpdate.RegisterEvent([
-                    { target: $(this.nameBox), eventType: "keyup" },
-                    { target: $(this.titleBox), eventType: "keyup" }
-                ]);
+            var formatArg = extraFormatArg ? Object.create(extraFormatArg) : {};
+            formatArg["html"] = this.formatter.Exec(source);
+            var previewHTML = StringUtil.format(this.template_container, formatArg);
+            this.OverwritePreview(previewHTML);
+            return this;
+        };
+        SSEvtPreviewBase.DELAY_MS = 0;
+        return SSEvtPreviewBase;
+    }(EvtBasedPreview.EvtBasedPreview));
+    exports.SSEvtPreviewBase = SSEvtPreviewBase;
+    var SerifPreview = (function (_super) {
+        __extends(SerifPreview, _super);
+        function SerifPreview(arg) {
+            var formatter = new Config.ExpFormatter({ ssp: arg.ssp, at3ModeAsDefault: false, template: SerifPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
+            _super.call(this, {
+                insTarget: arg.insTarget,
+                insMode: arg.insMode,
+                textbox: arg.textbox,
+                ssp: arg.ssp,
+                formatter: formatter
+            });
+        }
+        SerifPreview.TEMPLATE = null;
+        return SerifPreview;
+    }(SSEvtPreviewBase));
+    exports.SerifPreview = SerifPreview;
+    var MessagePreview = (function (_super) {
+        __extends(MessagePreview, _super);
+        function MessagePreview(arg) {
+            var formatter = new Config.ExpFormatter({ ssp: arg.ssp, at3ModeAsDefault: false, template: MessagePreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
+            _super.call(this, {
+                insTarget: arg.insTarget,
+                insMode: arg.insMode,
+                textbox: arg.textbox,
+                ssp: arg.ssp,
+                formatter: formatter
+            });
+        }
+        MessagePreview.TEMPLATE = null;
+        return MessagePreview;
+    }(SSEvtPreviewBase));
+    exports.MessagePreview = MessagePreview;
+    var PartyBBSPreview = (function (_super) {
+        __extends(PartyBBSPreview, _super);
+        function PartyBBSPreview(args) {
+            var formatter = new Config.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: true, template: PartyBBSPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
+            _super.call(this, {
+                insTarget: args.insTarget,
+                insMode: args.insMode,
+                textbox: args.textbox,
+                ssp: args.ssp,
+                formatter: formatter
+            });
+            this.nameBox = args.nameBox;
+            this.titleBox = args.titleBox;
+            this.OnUpdate.RegisterEvent([
+                { target: $(this.nameBox), eventType: "keyup" },
+                { target: $(this.titleBox), eventType: "keyup" }
+            ]);
+        }
+        PartyBBSPreview.prototype.Update = function () {
+            this.template_container = PartyBBSPreview.TEMPLATE_CONTAINER;
+            var title = this.titleBox.value || "無題";
+            var name = this.nameBox.value;
+            _super.prototype.Update.call(this, { title: title, name: name });
+            return this;
+        };
+        PartyBBSPreview.TEMPLATE = null;
+        PartyBBSPreview.TEMPLATE_CONTAINER = "<div class='preview'><div class='BackBoard'><b>xxx ：{title}</b> &nbsp;&nbsp;{name}&#12288;（20xx/xx/xx xx:xx:xx） <br> <br>{html}<br><br><br clear='ALL'></div></div>";
+        return PartyBBSPreview;
+    }(SSEvtPreviewBase));
+    exports.PartyBBSPreview = PartyBBSPreview;
+    var DiaryPreview = (function (_super) {
+        __extends(DiaryPreview, _super);
+        function DiaryPreview(args) {
+            var formatter = new Config.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: true, template: DiaryPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
+            _super.call(this, { insTarget: args.insTarget,
+                insMode: args.insMode,
+                textbox: args.textbox,
+                ssp: args.ssp,
+                formatter: formatter,
+                template_container: DiaryPreview.TEMPLATE_CONTAINER
+            });
+            this.countsChars = args.countsChars || false;
+        }
+        DiaryPreview.prototype.UpdateContainer = function (arg) {
+            if (this.countsChars) {
+                var charCount = Config.ExpAnalyzer.CountLengthOfExpChars(this.textbox.value);
+                this.template_container = DiaryPreview.SelectCharCountContainer(charCount);
             }
-            PartyBBSPreview.prototype.Update = function () {
-                this.template_container = PartyBBSPreview.TEMPLATE_CONTAINER;
-                var title = this.titleBox.value || "無題";
-                var name = this.nameBox.value;
-                _super.prototype.Update.call(this, { title: title, name: name });
-                return this;
-            };
-            PartyBBSPreview.TEMPLATE = null;
-            PartyBBSPreview.TEMPLATE_CONTAINER = "<div class='preview'><div class='BackBoard'><b>xxx ：{title}</b> &nbsp;&nbsp;{name}&#12288;（20xx/xx/xx xx:xx:xx） <br> <br>{html}<br><br><br clear='ALL'></div></div>";
-            return PartyBBSPreview;
-        }(SSEvtPreviewBase));
-        Preview.PartyBBSPreview = PartyBBSPreview;
-        var DiaryPreview = (function (_super) {
-            __extends(DiaryPreview, _super);
-            function DiaryPreview(args) {
-                var formatter = new SS.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: true, template: DiaryPreview.TEMPLATE, randomizesDiceTag: Preview.randomizesDiceTagResult });
-                _super.call(this, { insTarget: args.insTarget,
-                    insMode: args.insMode,
-                    textbox: args.textbox,
-                    ssp: args.ssp,
-                    formatter: formatter,
-                    template_container: DiaryPreview.TEMPLATE_CONTAINER
-                });
-                this.countsChars = args.countsChars || false;
+            else {
+                this.template_container = DiaryPreview.TEMPLATE_CONTAINER;
             }
-            DiaryPreview.prototype.UpdateContainer = function (arg) {
-                if (this.countsChars) {
-                    var charCount = SS.ExpAnalyzer.CountLengthOfExpChars(this.textbox.value);
-                    this.template_container = DiaryPreview.SelectCharCountContainer(charCount);
-                }
-                else {
-                    this.template_container = DiaryPreview.TEMPLATE_CONTAINER;
-                }
-                return this;
-            };
-            DiaryPreview.SelectCharCountContainer = function (charCount) {
-                var charCountHTML;
-                if (charCount > DiaryPreview.MAXIMUM_CHARS) {
-                    charCountHTML = "<span class='char_count char_count_over'>{charCount}</span>";
-                }
-                else {
-                    charCountHTML = "<span class='char_count'>{charCount}</span>";
-                }
-                return StringUtil.format(DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR, { charCount: charCountHTML });
-            };
-            DiaryPreview.prototype.Update = function () {
-                var charCount = SS.ExpAnalyzer.CountLengthOfExpChars(this.textbox.value);
-                this.UpdateContainer({ charCount: charCount });
-                _super.prototype.Update.call(this, { charCount: charCount });
-                return this;
-            };
-            DiaryPreview.TEMPLATE = null;
-            DiaryPreview.TEMPLATE_CONTAINER = "<div class='preview'><div class='tablestyle3'>{html}</div></div>";
-            DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR = "<div class='preview'><p class='char_count_line'>{charCount} / 5000</p><div class='tablestyle3'>{html}</div></div>";
-            DiaryPreview.MAXIMUM_CHARS = 5000;
-            return DiaryPreview;
-        }(SSEvtPreviewBase));
-        Preview.DiaryPreview = DiaryPreview;
-    })(Preview = SS.Preview || (SS.Preview = {}));
-})(SS || (SS = {}));
-var Pages;
-(function (Pages) {
+            return this;
+        };
+        DiaryPreview.SelectCharCountContainer = function (charCount) {
+            var charCountHTML;
+            if (charCount > DiaryPreview.MAXIMUM_CHARS) {
+                charCountHTML = "<span class='char_count char_count_over'>{charCount}</span>";
+            }
+            else {
+                charCountHTML = "<span class='char_count'>{charCount}</span>";
+            }
+            return StringUtil.format(DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR, { charCount: charCountHTML });
+        };
+        DiaryPreview.prototype.Update = function () {
+            var charCount = Config.ExpAnalyzer.CountLengthOfExpChars(this.textbox.value);
+            this.UpdateContainer({ charCount: charCount });
+            _super.prototype.Update.call(this, { charCount: charCount });
+            return this;
+        };
+        DiaryPreview.TEMPLATE = null;
+        DiaryPreview.TEMPLATE_CONTAINER = "<div class='preview'><div class='tablestyle3'>{html}</div></div>";
+        DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR = "<div class='preview'><p class='char_count_line'>{charCount} / 5000</p><div class='tablestyle3'>{html}</div></div>";
+        DiaryPreview.MAXIMUM_CHARS = 5000;
+        return DiaryPreview;
+    }(SSEvtPreviewBase));
+    exports.DiaryPreview = DiaryPreview;
+});
+define("lib/ss/pages/CharacterSettings", ["require", "exports"], function (require, exports) {
+    "use strict";
     var CharacterSettings = (function () {
         function CharacterSettings() {
         }
@@ -913,96 +927,112 @@ var Pages;
         };
         return CharacterSettings;
     }());
-    Pages.CharacterSettings = CharacterSettings;
-})(Pages || (Pages = {}));
-var Program;
-(function (Program) {
-    SS.Preview.SSEvtPreviewBase.DELAY_MS = 100;
-    var InitAllTextboxesWithSerifPreview = function (ssp) {
-        $("textarea").each(function (i, e) {
-            var preview = new SS.Preview.SerifPreview({
-                insTarget: e,
-                insMode: EvtBasedPreview.InsertionMode.InsertAfter,
-                textbox: e,
-                ssp: ssp
+    exports.CharacterSettings = CharacterSettings;
+});
+define("lib/ss/pages", ["require", "exports", "lib/ss/pages/CharacterSettings"], function (require, exports, characterSettings_1) {
+    "use strict";
+    function __export(m) {
+        for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+    }
+    __export(characterSettings_1);
+});
+define("SSPreviewer.user", ["require", "exports", "lib/eventBasedPreview", "lib/ss/config", "lib/ss/preview", "lib/ss/pageConfig", "lib/ss/pages"], function (require, exports, EvtBasedPreview, Config, Preview, pageConfig_1, Pages) {
+    "use strict";
+    var SSPreviewer;
+    (function (SSPreviewer) {
+        function Init() {
+            Preview.SSEvtPreviewBase.DELAY_MS = 100;
+            var InitAllTextboxesWithSerifPreview = function (ssp) {
+                $("textarea").each(function (i, e) {
+                    var preview = new Preview.SerifPreview({
+                        insTarget: e,
+                        insMode: EvtBasedPreview.InsertionMode.InsertAfter,
+                        textbox: e,
+                        ssp: ssp
+                    });
+                });
+            };
+            var InitAllTextboxesWithMessagePreview = function (ssp) {
+                $("textarea").each(function (i, e) {
+                    var imageURLBox = $(e).nextUntil("input").last().next()[0];
+                    var preview = new Preview.MessagePreview({
+                        insTarget: imageURLBox,
+                        insMode: EvtBasedPreview.InsertionMode.InsertAfter,
+                        textbox: e,
+                        ssp: ssp
+                    });
+                });
+            };
+            var p = pageConfig_1.PageConfig;
+            var ssp = new Config.SSProfile();
+            p.Common = new pageConfig_1.Page(ssp, function (ssp) {
+                $("#char_Button").before("<center class='F1'>↓(Previewer) アイコン・愛称の自動読込↓</center>");
             });
-        });
-    };
-    var InitAllTextboxesWithMessagePreview = function (ssp) {
-        $("textarea").each(function (i, e) {
-            var imageURLBox = $(e).nextUntil("input").last().next()[0];
-            var preview = new SS.Preview.MessagePreview({
-                insTarget: imageURLBox,
-                insMode: EvtBasedPreview.InsertionMode.InsertAfter,
-                textbox: e,
-                ssp: ssp
+            p.MainPage = new pageConfig_1.Page(ssp, function (ssp) {
+                $("head").append("<style type='text/css'>\n        .char_count_line {\n            text-align: left;\n            font-size: 12px;\n        }\n        .char_count_line .char_count_over {\n            color: #CC3333;\n            font-size: 16px;\n            font-weight: bold;\n        }</style>");
+                var diaryBox = $("#Diary_TextBox")[0];
+                var diaryPreview = new Preview.DiaryPreview({
+                    insTarget: diaryBox,
+                    insMode: EvtBasedPreview.InsertionMode.InsertAfter,
+                    textbox: diaryBox,
+                    ssp: ssp,
+                    countsChars: true
+                });
+                var serifWhenUsingItem = $("#TextBox12")[0];
+                var serifPreview_WhenUsingItem = new Preview.SerifPreview({
+                    insTarget: serifWhenUsingItem,
+                    insMode: EvtBasedPreview.InsertionMode.InsertAfter,
+                    textbox: serifWhenUsingItem,
+                    ssp: ssp
+                });
             });
-        });
-    };
-    var p = SS.PageConfig;
-    var ssp = new SS.SSProfile();
-    p.Common = new SS.Page(ssp, function (ssp) {
-        $("#char_Button").before("<center class='F1'>↓(Previewer) アイコン・愛称の自動読込↓</center>");
-    });
-    p.MainPage = new SS.Page(ssp, function (ssp) {
-        $("head").append("<style type='text/css'>\n    .char_count_line {\n        text-align: left;\n        font-size: 12px;\n    }\n    .char_count_line .char_count_over {\n        color: #CC3333;\n        font-size: 16px;\n        font-weight: bold;\n    }</style>");
-        var diaryBox = $("#Diary_TextBox")[0];
-        var diaryPreview = new SS.Preview.DiaryPreview({
-            insTarget: diaryBox,
-            insMode: EvtBasedPreview.InsertionMode.InsertAfter,
-            textbox: diaryBox,
-            ssp: ssp,
-            countsChars: true
-        });
-        var serifWhenUsingItem = $("#TextBox12")[0];
-        var serifPreview_WhenUsingItem = new SS.Preview.SerifPreview({
-            insTarget: serifWhenUsingItem,
-            insMode: EvtBasedPreview.InsertionMode.InsertAfter,
-            textbox: serifWhenUsingItem,
-            ssp: ssp
-        });
-    });
-    p.PartyBBS = new SS.Page(ssp, function (ssp) {
-        var $commentBox = $("#commentTxt");
-        var preview = new SS.Preview.PartyBBSPreview({
-            insTarget: $commentBox.closest("div.BackBoard")[0],
-            insMode: EvtBasedPreview.InsertionMode.InsertAfter,
-            textbox: $commentBox[0],
-            ssp: ssp,
-            nameBox: $("#nameTxt")[0],
-            titleBox: $("#titleTxt")[0]
-        });
-    });
-    p.Trade = new SS.Page(ssp, function (ssp) {
-        InitAllTextboxesWithSerifPreview(ssp);
-    });
-    p.Reinforcement = new SS.Page(ssp, function (ssp) {
-        InitAllTextboxesWithSerifPreview(ssp);
-    });
-    p.BattleSettings = new SS.Page(ssp, function (ssp) {
-        InitAllTextboxesWithSerifPreview(ssp);
-    });
-    p.BattleWords = new SS.Page(ssp, function (ssp) {
-        InitAllTextboxesWithSerifPreview(ssp);
-    });
-    p.Message = new SS.Page(ssp, function (ssp) {
-        InitAllTextboxesWithMessagePreview(ssp);
-    });
-    p.GroupMessage = new SS.Page(ssp, function (ssp) {
-        InitAllTextboxesWithMessagePreview(ssp);
-    });
-    p.CharacterSettings = new SS.Page(ssp, function (ssp) {
-        ssp.SaveIconURLArray(Pages.CharacterSettings.ExtractIconUrlArray());
-        ssp.SaveNickname(Pages.CharacterSettings.ExtractNickname());
-    });
-    p.Community = new SS.Page(ssp, function (ssp) {
-        var communityCaptionBox = $("textarea")[0];
-        var communityCaptionPreview = new SS.Preview.DiaryPreview({
-            insTarget: communityCaptionBox,
-            insMode: EvtBasedPreview.InsertionMode.InsertAfter,
-            textbox: communityCaptionBox,
-            ssp: ssp
-        });
-    });
-    p.RunInitializer(ssp, document.location);
-})(Program || (Program = {}));
+            p.PartyBBS = new pageConfig_1.Page(ssp, function (ssp) {
+                var $commentBox = $("#commentTxt");
+                var preview = new Preview.PartyBBSPreview({
+                    insTarget: $commentBox.closest("div.BackBoard")[0],
+                    insMode: EvtBasedPreview.InsertionMode.InsertAfter,
+                    textbox: $commentBox[0],
+                    ssp: ssp,
+                    nameBox: $("#nameTxt")[0],
+                    titleBox: $("#titleTxt")[0]
+                });
+            });
+            p.Trade = new pageConfig_1.Page(ssp, function (ssp) {
+                InitAllTextboxesWithSerifPreview(ssp);
+            });
+            p.Reinforcement = new pageConfig_1.Page(ssp, function (ssp) {
+                InitAllTextboxesWithSerifPreview(ssp);
+            });
+            p.BattleSettings = new pageConfig_1.Page(ssp, function (ssp) {
+                InitAllTextboxesWithSerifPreview(ssp);
+            });
+            p.BattleWords = new pageConfig_1.Page(ssp, function (ssp) {
+                InitAllTextboxesWithSerifPreview(ssp);
+            });
+            p.Message = new pageConfig_1.Page(ssp, function (ssp) {
+                InitAllTextboxesWithMessagePreview(ssp);
+            });
+            p.GroupMessage = new pageConfig_1.Page(ssp, function (ssp) {
+                InitAllTextboxesWithMessagePreview(ssp);
+            });
+            p.CharacterSettings = new pageConfig_1.Page(ssp, function (ssp) {
+                ssp.SaveIconURLArray(Pages.CharacterSettings.ExtractIconUrlArray());
+                ssp.SaveNickname(Pages.CharacterSettings.ExtractNickname());
+            });
+            p.Community = new pageConfig_1.Page(ssp, function (ssp) {
+                var communityCaptionBox = $("textarea")[0];
+                var communityCaptionPreview = new Preview.DiaryPreview({
+                    insTarget: communityCaptionBox,
+                    insMode: EvtBasedPreview.InsertionMode.InsertAfter,
+                    textbox: communityCaptionBox,
+                    ssp: ssp
+                });
+            });
+            p.RunInitializer(ssp, document.location);
+        }
+        Init();
+    })(SSPreviewer || (SSPreviewer = {}));
+});
+    (function(){
+        require(["SSPreviewer.user"], function(){ });
+    })();
