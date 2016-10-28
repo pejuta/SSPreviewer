@@ -5,7 +5,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.015
+// @version     0.1.016
 // @grant       none
 // ==/UserScript==
 //
@@ -687,9 +687,10 @@ define("lib/ss/config", ["require", "exports", "lib/util/string", "lib/util/html
             }
             return exps;
         };
-        ExpAnalyzer.CountLengthOfExpChars = function (source) {
-            var lineBreaks = source.length - source.replace(/(?:\r\n|\r|\n)/g, "").length;
-            return lineBreaks + source.length;
+        ExpAnalyzer.CountExpChars = function (source) {
+            var lfCount = source.length - source.replace(/\n/g, "").length;
+            var charCount = source.length - lfCount;
+            return { charCount: charCount, lfCount: lfCount };
         };
         return ExpAnalyzer;
     }());
@@ -756,7 +757,7 @@ define("lib/ss/pageConfig", ["require", "exports"], function (require, exports) 
     }());
     exports.Page = Page;
 });
-define("lib/ss/preview", ["require", "exports", "lib/eventBasedPreview", "lib/util/string", "lib/ss/config"], function (require, exports, EvtBasedPreview, StringUtil, Config) {
+define("lib/ss/preview", ["require", "exports", "lib/eventBasedPreview", "lib/util/string", "lib/ss/config"], function (require, exports, EvtBasedPreview, StringUtil, config) {
     "use strict";
     exports.randomizesDiceTagResult = false;
     var SSEvtPreviewBase = (function (_super) {
@@ -792,7 +793,7 @@ define("lib/ss/preview", ["require", "exports", "lib/eventBasedPreview", "lib/ut
     var SerifPreview = (function (_super) {
         __extends(SerifPreview, _super);
         function SerifPreview(arg) {
-            var formatter = new Config.ExpFormatter({ ssp: arg.ssp, at3ModeAsDefault: false, template: SerifPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
+            var formatter = new config.ExpFormatter({ ssp: arg.ssp, at3ModeAsDefault: false, template: SerifPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
             _super.call(this, {
                 insTarget: arg.insTarget,
                 insMode: arg.insMode,
@@ -808,7 +809,7 @@ define("lib/ss/preview", ["require", "exports", "lib/eventBasedPreview", "lib/ut
     var MessagePreview = (function (_super) {
         __extends(MessagePreview, _super);
         function MessagePreview(arg) {
-            var formatter = new Config.ExpFormatter({ ssp: arg.ssp, at3ModeAsDefault: false, template: MessagePreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
+            var formatter = new config.ExpFormatter({ ssp: arg.ssp, at3ModeAsDefault: false, template: MessagePreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
             _super.call(this, {
                 insTarget: arg.insTarget,
                 insMode: arg.insMode,
@@ -824,7 +825,7 @@ define("lib/ss/preview", ["require", "exports", "lib/eventBasedPreview", "lib/ut
     var PartyBBSPreview = (function (_super) {
         __extends(PartyBBSPreview, _super);
         function PartyBBSPreview(args) {
-            var formatter = new Config.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: true, template: PartyBBSPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
+            var formatter = new config.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: true, template: PartyBBSPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
             _super.call(this, {
                 insTarget: args.insTarget,
                 insMode: args.insMode,
@@ -854,7 +855,7 @@ define("lib/ss/preview", ["require", "exports", "lib/eventBasedPreview", "lib/ut
     var DiaryPreview = (function (_super) {
         __extends(DiaryPreview, _super);
         function DiaryPreview(args) {
-            var formatter = new Config.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: true, template: DiaryPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
+            var formatter = new config.ExpFormatter({ ssp: args.ssp, at3ModeAsDefault: true, template: DiaryPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
             _super.call(this, { insTarget: args.insTarget,
                 insMode: args.insMode,
                 textbox: args.textbox,
@@ -864,36 +865,43 @@ define("lib/ss/preview", ["require", "exports", "lib/eventBasedPreview", "lib/ut
             });
             this.countsChars = args.countsChars || false;
         }
-        DiaryPreview.prototype.UpdateContainer = function (arg) {
+        DiaryPreview.prototype.UpdateContainer = function (counts) {
             if (this.countsChars) {
-                var charCount = Config.ExpAnalyzer.CountLengthOfExpChars(this.textbox.value);
-                this.template_container = DiaryPreview.SelectCharCountContainer(charCount);
+                this.template_container = DiaryPreview.SelectCharCountContainer(counts);
             }
             else {
                 this.template_container = DiaryPreview.TEMPLATE_CONTAINER;
             }
             return this;
         };
-        DiaryPreview.SelectCharCountContainer = function (charCount) {
+        DiaryPreview.SelectCharCountContainer = function (c) {
             var charCountHTML;
-            if (charCount > DiaryPreview.MAXIMUM_CHARS) {
-                charCountHTML = "<span class='char_count char_count_over'>{charCount}</span>";
+            if (c.charCount > DiaryPreview.MAX_LENGTH_OF_CHARS) {
+                charCountHTML = "<span name='charCount' class='char_count char_count_over'>{charCount}</span>";
             }
             else {
-                charCountHTML = "<span class='char_count'>{charCount}</span>";
+                charCountHTML = "<span name='charCount' class='char_count'>{charCount}</span>";
             }
-            return StringUtil.format(DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR, { charCount: charCountHTML });
+            var lfCountHTML;
+            if (c.lfCount > DiaryPreview.MAX_COUNT_OF_LF) {
+                lfCountHTML = "<span name='lfCount' class='lf_count lf_count_over'>{lfCount}</span>";
+            }
+            else {
+                lfCountHTML = "<span name='lfCount' class='lf_count'>{lfCount}</span>";
+            }
+            return StringUtil.format(DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR, { charCount: charCountHTML, lfCount: lfCountHTML });
         };
         DiaryPreview.prototype.Update = function () {
-            var charCount = Config.ExpAnalyzer.CountLengthOfExpChars(this.textbox.value);
-            this.UpdateContainer({ charCount: charCount });
-            _super.prototype.Update.call(this, { charCount: charCount });
+            var counts = config.ExpAnalyzer.CountExpChars(this.textbox.value);
+            this.UpdateContainer(counts);
+            _super.prototype.Update.call(this, counts);
             return this;
         };
         DiaryPreview.TEMPLATE = null;
         DiaryPreview.TEMPLATE_CONTAINER = "<div class='preview'><div class='tablestyle3'>{html}</div></div>";
-        DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR = "<div class='preview'><p class='char_count_line'>{charCount} / 5000</p><div class='tablestyle3'>{html}</div></div>";
-        DiaryPreview.MAXIMUM_CHARS = 5000;
+        DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR = "<div class='preview'><p class='char_count_line'><span class='char_count_cnt'>{charCount} / 5000</span> <span class='lf_count_cnt'>(改行: {lfCount} / 2500)</span></p><div class='tablestyle3'>{html}</div></div>";
+        DiaryPreview.MAX_LENGTH_OF_CHARS = 5000;
+        DiaryPreview.MAX_COUNT_OF_LF = 2500;
         return DiaryPreview;
     }(SSEvtPreviewBase));
     exports.DiaryPreview = DiaryPreview;
@@ -968,8 +976,8 @@ define("SSPreviewer.user", ["require", "exports", "lib/eventBasedPreview", "lib/
             p.Common = new pageConfig_1.Page(ssp, function (ssp) {
                 $("#char_Button").before("<center class='F1'>↓(Previewer) アイコン・愛称の自動読込↓</center>");
             });
+            $("head").append("<style type='text/css'>\n        .char_count_line {\n            text-align: left;\n        }\n        .char_count_cnt {\n            font-size: 12px;\n        }\n        .lf_count_cnt {\n            font-size: 10px;\n        }\n        .char_count_line .char_count_over, .char_count_line .lf_count_over {\n            color: #CC3333;\n            font-weight: bold;\n        }\n        .char_count_line .char_count_over {\n            font-size: 16px;\n        }\n        .char_count_line .lf_count_over {\n            font-size: 14px;\n        }\n        </style>");
             p.MainPage = new pageConfig_1.Page(ssp, function (ssp) {
-                $("head").append("<style type='text/css'>\n        .char_count_line {\n            text-align: left;\n            font-size: 12px;\n        }\n        .char_count_line .char_count_over {\n            color: #CC3333;\n            font-size: 16px;\n            font-weight: bold;\n        }</style>");
                 var diaryBox = $("#Diary_TextBox")[0];
                 var diaryPreview = new Preview.DiaryPreview({
                     insTarget: diaryBox,
@@ -1033,6 +1041,6 @@ define("SSPreviewer.user", ["require", "exports", "lib/eventBasedPreview", "lib/
         Init();
     })(SSPreviewer || (SSPreviewer = {}));
 });
-    (function(){
-        require(["SSPreviewer.user"], function(){ });
-    })();
+(function(){
+    require(["SSPreviewer.user"], function(){ });
+})();
