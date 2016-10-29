@@ -1022,7 +1022,7 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
             }
             function ToggleAllPreviewsButton(previews) {
                 $("head").append("<style type='text/css'>\n    .active .showOnActive, .hideOnActive {\n        display: inline;\n    }\n    .showOnActive, .active .hideOnActive {\n        display: none;\n    }\n</style>");
-                var $b = $("<a id='showAllPreviews' class='clearFix' href='#' style='display: block; float: right;'><button type='button' onclick='return false;'>全てのプレビューを<span class='showOnActive'>表示</span><span class='hideOnActive'>隠す</span></button></a>").on("click", function () {
+                var $b = $("<a id='showAllPreviews' class='clearFix' href='#' style='display: block; float: right;'><button type='button' onclick='return false;'>全てのプレビューを<span class='hideOnActive'>表示</span><span class='showOnActive'>隠す</span></button></a>").on("click", function () {
                     $b.toggleClass("active");
                     if ($b.hasClass("active")) {
                         ShowAllPreviews(previews);
