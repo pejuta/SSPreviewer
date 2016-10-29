@@ -5,7 +5,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.017
+// @version     0.1.018
 // @grant       none
 // ==/UserScript==
 //
@@ -984,34 +984,62 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
         // const $: JQueryStatic = jQuery;
         function Init() {
             SSPreview.SSPreview.DELAY_MS = 100;
-            var InitAllTextboxesWithSerifPreview = function (profile) {
-                $("textarea").each(function (i, e) {
-                    var preview = new SSPreview.SerifPreview({
+            $("head").append("<style type='text/css'>\n    .clearfix:after {\n        content: \"\";\n        display: block;\n        clear: both;\n    }\n</style>");
+            function InitAllTextboxesWithSerifPreview(profile) {
+                return $("textarea").toArray().map(function (e, i) {
+                    return new SSPreview.SerifPreview({
                         insTarget: e,
                         insMode: Preview.InsertionMode.InsertAfter,
                         textbox: e,
                         profile: profile
                     });
                 });
-            };
-            var InitAllTextboxesWithMessagePreview = function (profile) {
-                $("textarea").each(function (i, e) {
+            }
+            ;
+            function InitAllTextboxesWithMessagePreview(profile) {
+                return $("textarea").toArray().map(function (e, i) {
                     var imageURLBox = $(e).nextUntil("input").last().next()[0];
-                    var preview = new SSPreview.MessagePreview({
+                    return new SSPreview.MessagePreview({
                         insTarget: imageURLBox,
                         insMode: Preview.InsertionMode.InsertAfter,
                         textbox: e,
                         profile: profile
                     });
                 });
-            };
+            }
+            ;
+            function ShowAllPreviews(previews) {
+                for (var _i = 0, previews_1 = previews; _i < previews_1.length; _i++) {
+                    var p_1 = previews_1[_i];
+                    p_1.Show();
+                }
+            }
+            function HideAllPreviews(previews) {
+                for (var _i = 0, previews_2 = previews; _i < previews_2.length; _i++) {
+                    var p_2 = previews_2[_i];
+                    p_2.Hide();
+                }
+            }
+            function ToggleAllPreviewsButton(previews) {
+                $("head").append("<style type='text/css'>\n    .active .showOnActive, .hideOnActive {\n        display: inline;\n    }\n    .showOnActive, .active .hideOnActive {\n        display: none;\n    }\n</style>");
+                var $b = $("<a id='showAllPreviews' class='clearFix' href='#' style='display: block; float: right;'><button type='button' onclick='return false;'>全てのプレビューを<span class='showOnActive'>表示</span><span class='hideOnActive'>隠す</span></button></a>").on("click", function () {
+                    $b.toggleClass("active");
+                    if ($b.hasClass("active")) {
+                        ShowAllPreviews(previews);
+                    }
+                    else {
+                        HideAllPreviews(previews);
+                    }
+                });
+                $("td.BackMessage2").eq(0).prepend($b);
+            }
             var p = pageConfig_1.default;
             var profile = new profile_1.Profile();
             p.Common = new page_1.default(profile, function (profile) {
                 $("#char_Button").before("<center class='F1'>↓(Previewer) アイコン・愛称の自動読込↓</center>");
             });
-            $("head").append("<style type='text/css'>\n    .char_count_line {\n        text-align: left;\n    }\n    .char_count_cnt {\n        font-size: 12px;\n    }\n    .lf_count_cnt {\n        font-size: 10px;\n    }\n    .char_count_line .char_count_over, .char_count_line .lf_count_over {\n        color: #CC3333;\n        font-weight: bold;\n    }\n    .char_count_line .char_count_over {\n        font-size: 16px;\n    }\n    .char_count_line .lf_count_over {\n        font-size: 14px;\n    }\n    </style>");
             p.MainPage = new page_1.default(profile, function (profile) {
+                $("head").append("<style type='text/css'>\n    .char_count_line {\n        text-align: left;\n    }\n    .char_count_cnt {\n        font-size: 12px;\n    }\n    .lf_count_cnt {\n        font-size: 10px;\n    }\n    .char_count_line .char_count_over, .char_count_line .lf_count_over {\n        color: #CC3333;\n        font-weight: bold;\n    }\n    .char_count_line .char_count_over {\n        font-size: 16px;\n    }\n    .char_count_line .lf_count_over {\n        font-size: 14px;\n    }\n</style>");
                 var diaryBox = $("#Diary_TextBox")[0];
                 var diaryPreview = new SSPreview.DiaryPreview({
                     insTarget: diaryBox,
@@ -1027,6 +1055,7 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
                     textbox: serifWhenUsingItem,
                     profile: profile
                 });
+                ToggleAllPreviewsButton([diaryPreview, serifPreview_WhenUsingItem]);
             });
             p.PartyBBS = new page_1.default(profile, function (profile) {
                 var $commentBox = $("#commentTxt");
@@ -1038,24 +1067,31 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
                     nameBox: $("#nameTxt")[0],
                     titleBox: $("#titleTxt")[0]
                 });
+                ToggleAllPreviewsButton([preview]);
             });
             p.Trade = new page_1.default(profile, function (profile) {
-                InitAllTextboxesWithSerifPreview(profile);
+                var previews = InitAllTextboxesWithSerifPreview(profile);
+                ToggleAllPreviewsButton(previews);
             });
             p.Reinforcement = new page_1.default(profile, function (profile) {
-                InitAllTextboxesWithSerifPreview(profile);
+                var previews = InitAllTextboxesWithSerifPreview(profile);
+                ToggleAllPreviewsButton(previews);
             });
             p.BattleSettings = new page_1.default(profile, function (profile) {
-                InitAllTextboxesWithSerifPreview(profile);
+                var previews = InitAllTextboxesWithSerifPreview(profile);
+                ToggleAllPreviewsButton(previews);
             });
             p.BattleWords = new page_1.default(profile, function (profile) {
-                InitAllTextboxesWithSerifPreview(profile);
+                var previews = InitAllTextboxesWithSerifPreview(profile);
+                ToggleAllPreviewsButton(previews);
             });
             p.Message = new page_1.default(profile, function (profile) {
-                InitAllTextboxesWithMessagePreview(profile);
+                var previews = InitAllTextboxesWithMessagePreview(profile);
+                ToggleAllPreviewsButton(previews);
             });
             p.GroupMessage = new page_1.default(profile, function (profile) {
-                InitAllTextboxesWithMessagePreview(profile);
+                var previews = InitAllTextboxesWithMessagePreview(profile);
+                ToggleAllPreviewsButton(previews);
             });
             p.CharacterSettings = new page_1.default(profile, function (profile) {
                 profile.SaveIconURLArray(Pages.CharacterSettings.ExtractIconUrlArray());
@@ -1063,12 +1099,13 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
             });
             p.Community = new page_1.default(profile, function (profile) {
                 var communityCaptionBox = $("textarea")[0];
-                var communityCaptionPreview = new SSPreview.DiaryPreview({
+                var preview = new SSPreview.DiaryPreview({
                     insTarget: communityCaptionBox,
                     insMode: Preview.InsertionMode.InsertAfter,
                     textbox: communityCaptionBox,
                     profile: profile
                 });
+                ToggleAllPreviewsButton([preview]);
             });
             p.RunInitializer(profile, document.location);
         }
