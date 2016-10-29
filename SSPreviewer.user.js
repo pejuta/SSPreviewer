@@ -113,8 +113,7 @@ define("lib/ss/page", ["require", "exports"], function (require, exports) {
         });
         return Page;
     }());
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = Page;
+    exports.Page = Page;
 });
 define("lib/ss/pageConfig", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -150,8 +149,7 @@ define("lib/ss/pageConfig", ["require", "exports"], function (require, exports) 
         };
         return PageConfig;
     }());
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = PageConfig;
+    exports.PageConfig = PageConfig;
 });
 define("lib/util/jquery/customEvent", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -248,8 +246,7 @@ define("lib/util/jquery/replaceTo", ["require", "exports"], function (require, e
         $(from).replaceWith($to);
         return $to;
     }
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = replaceTo;
+    exports.replaceTo = replaceTo;
 });
 define("lib/util/timer/timer", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -311,8 +308,7 @@ define("lib/util/timer/timer", ["require", "exports"], function (require, export
         };
         return Timer;
     }());
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = Timer;
+    exports.Timer = Timer;
 });
 define("lib/util/timer/timerEvent", ["require", "exports", "lib/util/timer/timer"], function (require, exports, timer_1) {
     "use strict";
@@ -369,9 +365,8 @@ define("lib/util/timer/timerEvent", ["require", "exports", "lib/util/timer/timer
             return this;
         };
         return TimerEvent;
-    }(timer_1.default));
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = TimerEvent;
+    }(timer_1.Timer));
+    exports.TimerEvent = TimerEvent;
 });
 define("lib/preview", ["require", "exports", "lib/util/jquery/customEvent", "lib/util/jquery/replaceTo", "lib/util/timer/timerEvent"], function (require, exports, customEvent_1, replaceTo_1, timerEvent_1) {
     "use strict";
@@ -401,7 +396,7 @@ define("lib/preview", ["require", "exports", "lib/util/jquery/customEvent", "lib
             this.insTarget = arg.insTarget;
             this.insMode = arg.insMode;
             this._delay_ms = arg.delay_ms || Preview._DEFAULT_DELAY_MS;
-            this.timerEvt = new timerEvent_1.default(function () { _this.Update(); }, this._delay_ms);
+            this.timerEvt = new timerEvent_1.TimerEvent(function () { _this.Update(); }, this._delay_ms);
             this.timerEvt.resetTimeWhenStarting = true;
         }
         Object.defineProperty(Preview.prototype, "Delay_ms", {
@@ -470,7 +465,7 @@ define("lib/preview", ["require", "exports", "lib/util/jquery/customEvent", "lib
         };
         Preview.prototype.OverwritePreview = function (newHtml) {
             if (this.preview) {
-                this.preview = replaceTo_1.default(this.preview, newHtml)[0];
+                this.preview = replaceTo_1.replaceTo(this.preview, newHtml)[0];
             }
             else {
                 this.InsertPreview(newHtml);
@@ -508,8 +503,7 @@ define("lib/util/string/format", ["require", "exports"], function (require, expo
         }
         return s;
     }
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = format;
+    exports.format = format;
 });
 define("lib/util/string/replaceLoop", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -534,8 +528,7 @@ define("lib/util/string/replaceLoop", ["require", "exports"], function (require,
             strTarget = strTarget.replace(searchValue, replaceTo);
         }
     }
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = replaceLoop;
+    exports.replaceLoop = replaceLoop;
 });
 define("lib/util/html/escape", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -584,6 +577,22 @@ define("lib/util/html/tag", ["require", "exports"], function (require, exports) 
 });
 define("lib/ss/expr/parser", ["require", "exports"], function (require, exports) {
     "use strict";
+    var IGroupOr = (function (_super) {
+        __extends(IGroupOr, _super);
+        function IGroupOr() {
+            _super.apply(this, arguments);
+        }
+        return IGroupOr;
+    }(Array));
+    exports.IGroupOr = IGroupOr;
+    var IGroupAnd = (function (_super) {
+        __extends(IGroupAnd, _super);
+        function IGroupAnd() {
+            _super.apply(this, arguments);
+        }
+        return IGroupAnd;
+    }(Array));
+    exports.IGroupAnd = IGroupAnd;
     var ParsedExpr = (function () {
         function ParsedExpr(arg) {
             this.enableAt3Mode = arg.enableAt3Mode;
@@ -624,56 +633,68 @@ define("lib/ss/expr/parser", ["require", "exports"], function (require, exports)
     var Parser = (function () {
         function Parser() {
         }
-        Parser.Parse = function (source, at3ModeAsDefault) {
+        Parser.Parse = function (source, at3ModeAsDefault, allowsOrTag) {
             // source: /\d+/,       capture: 5n + [-4:undefined, -3:undefined, -2:iundefined, -1:iconNum  , 0: bodyText]
             // source: @@@,         capture: 5n + [-4:@@@,       -3:undefined, -2:undefined,  -1:undefined, 0: bodyText]
             // source: @@@/\d+/,    capture: 5n + [-4:@@@,       -3:undefined, -2:iconNum,    -1:undefined, 0: bodyText]
             // source: @name@,      capture: 5n + [-4:@name@,    -3:name,      -2:undefined,  -1:undefined, 0: bodyText]
             // source: @name@/\d+/, capture: 5n + [-4:@name@,    -3:name,      -2:iconNum,    -1:undefined, 0: bodyText]
             var defaultIconNumber = at3ModeAsDefault ? -1 : 0;
-            // @name@周りの正規表現が複雑なのはname部分にアイコンタグ/\d+/を入れ子にされるのを防止するため。
-            // /1/を先にsplitしてから@@@をsplitするように、二段階で処理する方法よりこっちの方が変更実装が楽だった。
-            // これ以上手を加える場合は正規表現を簡単にして段階式にsplitする方法を採用すべき
-            var texts = source.split(/(?:(@@@|@((?![^<@]*\/\d+\/)[^<@]+)@)(?:\/(\d+)\/)?|\/(\d+)\/)/g);
-            if (texts.length === 1) {
-                return [new ParsedExpr({ enableAt3Mode: at3ModeAsDefault, iconNumber: defaultIconNumber, text: source })];
+            var orSources;
+            if (allowsOrTag) {
+                orSources = source.split("###");
             }
-            var exps = [];
-            for (var ti = 0, tiEnd = texts.length; ti < tiEnd; ti += 5) {
-                var text = texts[ti];
-                if (ti === 0) {
-                    if (text !== "") {
-                        exps.push(new ParsedExpr({ enableAt3Mode: at3ModeAsDefault, iconNumber: defaultIconNumber, text: texts[ti] }));
-                    }
+            else {
+                orSources = [source];
+            }
+            var ors = [];
+            for (var oi = 0, oiEnd = orSources.length; oi < oiEnd; oi++) {
+                // @name@周りの正規表現が複雑なのはname部分にアイコンタグ/\d+/を入れ子にされるのを防止するため。
+                // /1/を先にsplitしてから@@@をsplitするように、二段階で処理する方法よりこっちの方が変更実装が楽だった。
+                // これ以上手を加える場合は正規表現を簡単にして段階式にsplitする方法を採用すべき
+                var andSources = orSources[oi].split(/(?:(@@@|@((?![^<@]*\/\d+\/)[^<@]+)@)(?:\/(\d+)\/)?|\/(\d+)\/)/g);
+                if (andSources.length === 1) {
+                    ors.push([new ParsedExpr({ enableAt3Mode: at3ModeAsDefault, iconNumber: defaultIconNumber, text: source })]);
                     continue;
                 }
-                var changedName = null;
-                var enableAt3Mode = at3ModeAsDefault;
-                var strIconNumber = void 0;
-                if (texts[ti - 4] === undefined) {
-                    // /\d/
-                    strIconNumber = texts[ti - 1];
+                var ands = [];
+                for (var ai = 0, aiEnd = andSources.length; ai < aiEnd; ai += 5) {
+                    var text = andSources[ai];
+                    if (ai === 0) {
+                        if (text !== "") {
+                            ands.push(new ParsedExpr({ enableAt3Mode: at3ModeAsDefault, iconNumber: defaultIconNumber, text: andSources[ai] }));
+                        }
+                        continue;
+                    }
+                    var changedName = null;
+                    var enableAt3Mode = at3ModeAsDefault;
+                    var strIconNumber = void 0;
+                    if (andSources[ai - 4] === undefined) {
+                        // /\d/
+                        strIconNumber = andSources[ai - 1];
+                    }
+                    else if (andSources[ai - 4] === "@@@") {
+                        // @@@ or @@@/\d/
+                        strIconNumber = andSources[ai - 2];
+                        enableAt3Mode = true;
+                    }
+                    else {
+                        // @changedName@ or @changedName@/\d/
+                        strIconNumber = andSources[ai - 2];
+                        changedName = andSources[ai - 3];
+                        enableAt3Mode = false;
+                    }
+                    var iconNumber = enableAt3Mode ? -1 : 0;
+                    if (strIconNumber !== undefined) {
+                        iconNumber = parseInt(strIconNumber);
+                    }
+                    ands.push(new ParsedExpr({
+                        enableAt3Mode: enableAt3Mode, changedName: changedName, iconNumber: iconNumber, text: text
+                    }));
                 }
-                else if (texts[ti - 4] === "@@@") {
-                    // @@@ or @@@/\d/
-                    strIconNumber = texts[ti - 2];
-                    enableAt3Mode = true;
-                }
-                else {
-                    // @changedName@ or @changedName@/\d/
-                    strIconNumber = texts[ti - 2];
-                    changedName = texts[ti - 3];
-                    enableAt3Mode = false;
-                }
-                var iconNumber = enableAt3Mode ? -1 : 0;
-                if (strIconNumber !== undefined) {
-                    iconNumber = parseInt(strIconNumber);
-                }
-                exps.push(new ParsedExpr({
-                    enableAt3Mode: enableAt3Mode, changedName: changedName, iconNumber: iconNumber, text: text
-                }));
+                ors.push(ands);
             }
-            return exps;
+            return ors;
         };
         return Parser;
     }());
@@ -685,9 +706,13 @@ define("lib/ss/expr/formatter", ["require", "exports", "lib/util/string/format",
         function Formatter(args) {
             this.profile = args.profile;
             this.template = args.template || Formatter._DEFAULT_TEMPLATE;
-            this.separator = args.separator || "";
+            this.separators = args.separators ? {
+                and: args.separators.and || Formatter._DETAULT_SEPARATORS.and,
+                or: args.separators.or || Formatter._DETAULT_SEPARATORS.or
+            } : Object.create(Formatter._DETAULT_SEPARATORS);
             this.at3ModeAsDefault = args.at3ModeAsDefault || false;
             this.randomizesDiceTag = args.randomizesDiceTag || false;
+            this.allowsOrTag = args.allowsOrTag || false;
         }
         Object.defineProperty(Formatter.prototype, "Templates", {
             get: function () {
@@ -696,9 +721,9 @@ define("lib/ss/expr/formatter", ["require", "exports", "lib/util/string/format",
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(Formatter.prototype, "Separator", {
+        Object.defineProperty(Formatter.prototype, "Separators", {
             get: function () {
-                return this.separator;
+                return this.separators;
             },
             enumerable: true,
             configurable: true
@@ -718,22 +743,29 @@ define("lib/ss/expr/formatter", ["require", "exports", "lib/util/string/format",
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(Formatter.prototype, "AllowsOrTag", {
+            get: function () {
+                return this.allowsOrTag;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Formatter.GenerateDiceTag = function (randomize) {
             if (randomize === void 0) { randomize = false; }
             var resultNum = 1;
             if (randomize) {
                 resultNum = Math.floor(Math.random() * 6) + 1;
             }
-            return format_1.default(Formatter._DEFAULT_DICE_TEMPLATE, { imgDir: Formatter._DEFAULT_IMG_DIR, resultNum: resultNum });
+            return format_1.format(Formatter._DEFAULT_DICE_TEMPLATE, { imgDir: Formatter._DEFAULT_IMG_DIR, resultNum: resultNum });
         };
         Formatter.prototype.Exec = function (source) {
             var _this = this;
             // 1: escape
             var html = htmlEscape.escape(source);
             // 2: replace Deco-tags
-            html = replaceLoop_1.default(html, Formatter.reReplace_EscapedDecoTag, "<span class='$1'>$2</span>");
+            html = replaceLoop_1.replaceLoop(html, Formatter.reReplace_EscapedDecoTag, "<span class='$1'>$2</span>");
             // 3: parse and format
-            html = this.Format(parser_1.Parser.Parse(html, this.at3ModeAsDefault));
+            html = this.Format(parser_1.Parser.Parse(html, this.at3ModeAsDefault, this.allowsOrTag));
             // 4: dice
             html = html.replace(Formatter.reReplace_EscapedDiceTag, function (match) {
                 return Formatter.GenerateDiceTag(_this.randomizesDiceTag);
@@ -745,27 +777,29 @@ define("lib/ss/expr/formatter", ["require", "exports", "lib/util/string/format",
         };
         Formatter.prototype.Format = function (exps) {
             var _this = this;
-            return exps.map(function (exp, i, a) {
-                var template;
-                if (exp.EnableAt3Mode) {
-                    if (exp.IconNumber === -1) {
-                        template = _this.template.Body_At3Mode;
+            return exps.map(function (and, oi, a) {
+                return and.map(function (exp, ai, a) {
+                    var template;
+                    if (exp.EnableAt3Mode) {
+                        if (exp.IconNumber === -1) {
+                            template = _this.template.Body_At3Mode;
+                        }
+                        else {
+                            template = _this.template.Body_At3ModeAndIcon;
+                        }
                     }
                     else {
-                        template = _this.template.Body_At3ModeAndIcon;
+                        template = _this.template.Body;
                     }
-                }
-                else {
-                    template = _this.template.Body;
-                }
-                var iconURL = "";
-                if (exp.IconNumber !== -1) {
-                    iconURL = _this.profile.iconURLArray[exp.IconNumber] || (Formatter._DEFAULT_IMG_DIR + "default.jpg");
-                }
-                var name = exp.ChangedName === null ? _this.profile.nickname : exp.ChangedName;
-                var bodyHTML = exp.Text;
-                return format_1.default(template, { iconURL: iconURL, name: name, nameColor: _this.profile.nameColor, bodyHTML: bodyHTML });
-            }).join(this.separator);
+                    var iconURL = "";
+                    if (exp.IconNumber !== -1) {
+                        iconURL = _this.profile.iconURLArray[exp.IconNumber] || (Formatter._DEFAULT_IMG_DIR + "default.jpg");
+                    }
+                    var name = exp.ChangedName === null ? _this.profile.nickname : exp.ChangedName;
+                    var bodyHTML = exp.Text;
+                    return format_1.format(template, { iconURL: iconURL, name: name, nameColor: _this.profile.nameColor, bodyHTML: bodyHTML });
+                }).join(_this.separators.and);
+            }).join(this.separators.or);
         };
         Formatter._DEFAULT_TEMPLATE = {
             Body: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\" rowspan=\"2\"><IMG border = 0 alt=Icon align=left src=\"{iconURL}\" width=60 height=60></td><td class=\"Name\"><font color=\"{nameColor}\" class=\"B\">{name}</font></td></tr><tr><td class=\"Words\">\u300C{bodyHTML}\u300D</td></tr></table>",
@@ -775,6 +809,7 @@ define("lib/ss/expr/formatter", ["require", "exports", "lib/util/string/format",
         // { imgDir, resultNum }
         Formatter._DEFAULT_DICE_TEMPLATE = "<img alt=\"dice\" src=\"{imgDir}d{resultNum}.png\" border=\"0\" height=\"20\" width=\"20\">";
         Formatter._DEFAULT_IMG_DIR = "http://www.sssloxia.jp/p/";
+        Formatter._DETAULT_SEPARATORS = { and: "", or: "<div class='separator_or'></div>" };
         Formatter.reReplace_EscapedDecoTag = new RegExp(htmlEscape.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "g");
         Formatter.reReplace_EscapedDiceTag = new RegExp(htmlEscape.escape("<D>"), "g");
         return Formatter;
@@ -815,7 +850,7 @@ define("lib/ss/preview", ["require", "exports", "lib/util/string/format", "lib/p
             }
             var formatArg = extraFormatArg ? Object.create(extraFormatArg) : {};
             formatArg["html"] = this.formatter.Exec(source);
-            var previewHTML = format_2.default(this.template_container, formatArg);
+            var previewHTML = format_2.format(this.template_container, formatArg);
             this.OverwritePreview(previewHTML);
             return this;
         };
@@ -826,7 +861,7 @@ define("lib/ss/preview", ["require", "exports", "lib/util/string/format", "lib/p
     var SerifPreview = (function (_super) {
         __extends(SerifPreview, _super);
         function SerifPreview(arg) {
-            var formatter = new formatter_1.Formatter({ profile: arg.profile, at3ModeAsDefault: false, template: SerifPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
+            var formatter = new formatter_1.Formatter({ profile: arg.profile, at3ModeAsDefault: false, template: SerifPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult, allowsOrTag: true });
             _super.call(this, {
                 insTarget: arg.insTarget,
                 insMode: arg.insMode,
@@ -922,7 +957,7 @@ define("lib/ss/preview", ["require", "exports", "lib/util/string/format", "lib/p
             else {
                 lfCountHTML = "<span name='lfCount' class='lf_count'>{lfCount}</span>";
             }
-            return format_2.default(DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR, { charCount: charCountHTML, lfCount: lfCountHTML });
+            return format_2.format(DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR, { charCount: charCountHTML, lfCount: lfCountHTML });
         };
         DiaryPreview.prototype.Update = function () {
             var counts = rule_1.CountExprChars(this.textbox.value);
@@ -984,7 +1019,7 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
         // const $: JQueryStatic = jQuery;
         function Init() {
             SSPreview.SSPreview.DELAY_MS = 100;
-            $("head").append("<style type='text/css'>\n    .clearfix:after {\n        content: \"\";\n        display: block;\n        clear: both;\n    }\n</style>");
+            $("head").append("<style type='text/css'>\n    .clearfix:after {\n        content: \"\";\n        display: block;\n        clear: both;\n    }\n    .separator_or {\n        background-color: rgba(255,255,255,0.25);\n        border-radius: 2px;\n        margin: 4px 0px;\n        text-align: center;\n        vertical-align: middle;\n    }\n    .separator_or:before {\n        content: \"- OR -\";\n    }\n</style>");
             function InitAllTextboxesWithSerifPreview(profile) {
                 return $("textarea").toArray().map(function (e, i) {
                     return new SSPreview.SerifPreview({
@@ -1021,7 +1056,7 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
                 }
             }
             function ToggleAllPreviewsButton(previews) {
-                $("head").append("<style type='text/css'>\n    .active .showOnActive, .hideOnActive {\n        display: inline;\n    }\n    .showOnActive, .active .hideOnActive {\n        display: none;\n    }\n</style>");
+                $("head").append("<style type='text/css'>\n    OnActive, .active .hideOnActive {\n        display: none;\n    }\n</style>");
                 var $b = $("<a id='showAllPreviews' class='clearFix' href='#' style='display: block; float: right;'><button type='button' onclick='return false;'>全てのプレビューを<span class='hideOnActive'>表示</span><span class='showOnActive'>隠す</span></button></a>").on("click", function () {
                     $b.toggleClass("active");
                     if ($b.hasClass("active")) {
@@ -1033,12 +1068,12 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
                 });
                 $("td.BackMessage2").eq(0).prepend($b);
             }
-            var p = pageConfig_1.default;
+            var p = pageConfig_1.PageConfig;
             var profile = new profile_1.Profile();
-            p.Common = new page_1.default(profile, function (profile) {
+            p.Common = new page_1.Page(profile, function (profile) {
                 $("#char_Button").before("<center class='F1'>↓(Previewer) アイコン・愛称の自動読込↓</center>");
             });
-            p.MainPage = new page_1.default(profile, function (profile) {
+            p.MainPage = new page_1.Page(profile, function (profile) {
                 $("head").append("<style type='text/css'>\n    .char_count_line {\n        text-align: left;\n    }\n    .char_count_cnt {\n        font-size: 12px;\n    }\n    .lf_count_cnt {\n        font-size: 10px;\n    }\n    .char_count_line .char_count_over, .char_count_line .lf_count_over {\n        color: #CC3333;\n        font-weight: bold;\n    }\n    .char_count_line .char_count_over {\n        font-size: 16px;\n    }\n    .char_count_line .lf_count_over {\n        font-size: 14px;\n    }\n</style>");
                 var diaryBox = $("#Diary_TextBox")[0];
                 var diaryPreview = new SSPreview.DiaryPreview({
@@ -1057,7 +1092,7 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
                 });
                 ToggleAllPreviewsButton([diaryPreview, serifPreview_WhenUsingItem]);
             });
-            p.PartyBBS = new page_1.default(profile, function (profile) {
+            p.PartyBBS = new page_1.Page(profile, function (profile) {
                 var $commentBox = $("#commentTxt");
                 var preview = new SSPreview.PartyBBSPreview({
                     insTarget: $commentBox.closest("div.BackBoard")[0],
@@ -1069,35 +1104,35 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
                 });
                 ToggleAllPreviewsButton([preview]);
             });
-            p.Trade = new page_1.default(profile, function (profile) {
+            p.Trade = new page_1.Page(profile, function (profile) {
                 var previews = InitAllTextboxesWithSerifPreview(profile);
                 ToggleAllPreviewsButton(previews);
             });
-            p.Reinforcement = new page_1.default(profile, function (profile) {
+            p.Reinforcement = new page_1.Page(profile, function (profile) {
                 var previews = InitAllTextboxesWithSerifPreview(profile);
                 ToggleAllPreviewsButton(previews);
             });
-            p.BattleSettings = new page_1.default(profile, function (profile) {
+            p.BattleSettings = new page_1.Page(profile, function (profile) {
                 var previews = InitAllTextboxesWithSerifPreview(profile);
                 ToggleAllPreviewsButton(previews);
             });
-            p.BattleWords = new page_1.default(profile, function (profile) {
+            p.BattleWords = new page_1.Page(profile, function (profile) {
                 var previews = InitAllTextboxesWithSerifPreview(profile);
                 ToggleAllPreviewsButton(previews);
             });
-            p.Message = new page_1.default(profile, function (profile) {
+            p.Message = new page_1.Page(profile, function (profile) {
                 var previews = InitAllTextboxesWithMessagePreview(profile);
                 ToggleAllPreviewsButton(previews);
             });
-            p.GroupMessage = new page_1.default(profile, function (profile) {
+            p.GroupMessage = new page_1.Page(profile, function (profile) {
                 var previews = InitAllTextboxesWithMessagePreview(profile);
                 ToggleAllPreviewsButton(previews);
             });
-            p.CharacterSettings = new page_1.default(profile, function (profile) {
+            p.CharacterSettings = new page_1.Page(profile, function (profile) {
                 profile.SaveIconURLArray(Pages.CharacterSettings.ExtractIconUrlArray());
                 profile.SaveNickname(Pages.CharacterSettings.ExtractNickname());
             });
-            p.Community = new page_1.default(profile, function (profile) {
+            p.Community = new page_1.Page(profile, function (profile) {
                 var communityCaptionBox = $("textarea")[0];
                 var preview = new SSPreview.DiaryPreview({
                     insTarget: communityCaptionBox,
