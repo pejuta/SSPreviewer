@@ -5,7 +5,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.018
+// @version     0.1.019
 // @grant       none
 // ==/UserScript==
 //
@@ -654,7 +654,7 @@ define("lib/ss/expr/parser", ["require", "exports"], function (require, exports)
                 // これ以上手を加える場合は正規表現を簡単にして段階式にsplitする方法を採用すべき
                 var andSources = orSources[oi].split(/(?:(@@@|@((?![^<@]*\/\d+\/)[^<@]+)@)(?:\/(\d+)\/)?|\/(\d+)\/)/g);
                 if (andSources.length === 1) {
-                    ors.push([new ParsedExpr({ enableAt3Mode: at3ModeAsDefault, iconNumber: defaultIconNumber, text: source })]);
+                    ors.push([new ParsedExpr({ enableAt3Mode: at3ModeAsDefault, iconNumber: defaultIconNumber, text: orSources[oi] })]);
                     continue;
                 }
                 var ands = [];
