@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name        SSPreviewer (beta)
 // @namespace   11powder
+// @author      pejuta
 // @description 七海で色々なプレビューを表示する
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.019
+// @version     0.1.020
 // @grant       none
 // ==/UserScript==
 //
@@ -114,9 +115,6 @@ define("lib/ss/page", ["require", "exports"], function (require, exports) {
         return Page;
     }());
     exports.Page = Page;
-});
-define("lib/ss/pageConfig", ["require", "exports"], function (require, exports) {
-    "use strict";
     var PageConfig = (function () {
         function PageConfig() {
         }
@@ -151,343 +149,6 @@ define("lib/ss/pageConfig", ["require", "exports"], function (require, exports) 
     }());
     exports.PageConfig = PageConfig;
 });
-define("lib/util/jquery/customEvent", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var Event = (function () {
-        function Event(name, callback) {
-            var _this = this;
-            this.name = name;
-            this.callback = callback;
-            this._wrappedCallback = function (e) {
-                var args = [];
-                for (var _i = 1; _i < arguments.length; _i++) {
-                    args[_i - 1] = arguments[_i];
-                }
-                if (_this.callback) {
-                    _this.callback(e, args);
-                }
-                $(_this).triggerHandler(_this.name);
-            };
-            // code...
-        }
-        Object.defineProperty(Event.prototype, "Name", {
-            get: function () {
-                return this.name;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Event.prototype.RegisterEvent = function (arg, eventType) {
-            if (arg instanceof jQuery) {
-                this.evts = [{ target: arg, eventType: eventType }];
-            }
-            else {
-                this.evts = arg;
-            }
-            for (var _i = 0, _a = this.evts; _i < _a.length; _i++) {
-                var evt = _a[_i];
-                $(evt.target).on(evt.eventType, this._wrappedCallback);
-            }
-            return this;
-        };
-        Event.prototype.UnregisterEvent = function (arg, eventType) {
-            var currentEvts = this.evts;
-            if (arg === undefined) {
-                // no args
-                for (var _i = 0, currentEvts_1 = currentEvts; _i < currentEvts_1.length; _i++) {
-                    var evt = currentEvts_1[_i];
-                    $(evt.target).off(evt.eventType, this._wrappedCallback);
-                }
-                this.evts = [];
-                return this;
-            }
-            var seekedEvts;
-            if (arg instanceof jQuery) {
-                seekedEvts = [{ target: arg, eventType: eventType }];
-            }
-            else {
-                seekedEvts = arg;
-            }
-            // 'Set' object needs es6-
-            var newEvts = [];
-            var removedEvts = [];
-            for (var eri = currentEvts.length - 1; eri >= 0; eri--) {
-                for (var sri = seekedEvts.length - 1; sri >= 0; sri--) {
-                    var e = currentEvts[eri];
-                    var se = seekedEvts[sri];
-                    if (se.target.is(e.target)) {
-                        removedEvts.push(e);
-                        break;
-                    }
-                    if (sri === 0) {
-                        newEvts.push(e);
-                    }
-                }
-            }
-            for (var _a = 0, removedEvts_1 = removedEvts; _a < removedEvts_1.length; _a++) {
-                var evt = removedEvts_1[_a];
-                $(evt.target).off(evt.eventType, this._wrappedCallback);
-            }
-            this.evts = newEvts;
-            return this;
-        };
-        Event.prototype.Dispose = function () {
-            this.UnregisterEvent();
-        };
-        return Event;
-    }());
-    exports.Event = Event;
-});
-define("lib/util/jquery/replaceTo", ["require", "exports"], function (require, exports) {
-    "use strict";
-    // replaceWithとは異なり、戻り値は置換先オブジェクト
-    function replaceTo(from, to) {
-        var $to = $(to);
-        $(from).replaceWith($to);
-        return $to;
-    }
-    exports.replaceTo = replaceTo;
-});
-define("lib/util/timer/timer", ["require", "exports"], function (require, exports) {
-    "use strict";
-    // start, stop, resetTime, time
-    var Timer = (function () {
-        function Timer() {
-            this.date_start = 0;
-            this.time_ms = 0;
-            this.resetTimeWhenStarting = false;
-        }
-        Object.defineProperty(Timer.prototype, "Time_ms", {
-            get: function () {
-                return this.time_ms + Date.now() - this.date_start;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Timer.prototype, "isRunning", {
-            get: function () {
-                return !!this.date_start;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Timer.prototype.Start = function () {
-            if (this.isRunning && !this.resetTimeWhenStarting) {
-                return;
-            }
-            if (this.resetTimeWhenStarting) {
-                this.ResetTime();
-            }
-            this.date_start = Date.now();
-            return this;
-        };
-        Timer.prototype.Stop = function () {
-            return this.Pause().ResetTime();
-        };
-        Timer.prototype.Pause = function () {
-            if (!this.isRunning) {
-                return;
-            }
-            this.time_ms += Date.now() - this.date_start;
-            this.date_start = 0;
-            return this;
-        };
-        Timer.prototype.ResetTime = function () {
-            if (this.isRunning) {
-                this.date_start = Date.now();
-            }
-            else {
-                this.date_start = 0;
-            }
-            this.time_ms = 0;
-            return this;
-        };
-        Timer.prototype.PrintTime = function () {
-            console.log("time(ms): " + this.Time_ms);
-            return this;
-        };
-        return Timer;
-    }());
-    exports.Timer = Timer;
-});
-define("lib/util/timer/timerEvent", ["require", "exports", "lib/util/timer/timer"], function (require, exports, timer_1) {
-    "use strict";
-    var TimerEvent = (function (_super) {
-        __extends(TimerEvent, _super);
-        function TimerEvent(afterPeriod, period_ms) {
-            _super.call(this);
-            this.afterPeriod = afterPeriod;
-            this.period_ms = period_ms;
-            this.id = 0;
-        }
-        TimerEvent.prototype.setCallbackArg = function (a) {
-            if (a === undefined) {
-                return;
-            }
-            this.callbackArg = a;
-        };
-        TimerEvent.prototype.Start = function (callbackArg) {
-            this.setCallbackArg(callbackArg);
-            if (!this.isRunning) {
-                var period_ms = this.period_ms - this.time_ms;
-                if (period_ms < 0) {
-                    period_ms = 0;
-                }
-                this.id = setTimeout(this.afterPeriod, period_ms, callbackArg);
-            }
-            _super.prototype.Start.call(this);
-            return this;
-        };
-        TimerEvent.prototype.Stop = function (callsCallback, newCallbackArg) {
-            if (callsCallback === void 0) { callsCallback = false; }
-            if (callsCallback) {
-                this.setCallbackArg(newCallbackArg);
-                this.afterPeriod((newCallbackArg === undefined ? this.callbackArg : newCallbackArg));
-            }
-            return this.Pause().ResetTime();
-        };
-        TimerEvent.prototype.Pause = function () {
-            if (!this.isRunning) {
-                return;
-            }
-            clearTimeout(this.id);
-            this.id = 0;
-            _super.prototype.Pause.call(this);
-            return this;
-        };
-        TimerEvent.prototype.ResetTime = function (newCallbackArg) {
-            this.setCallbackArg(newCallbackArg);
-            if (this.isRunning) {
-                clearTimeout(this.id);
-                this.id = setTimeout(this.afterPeriod, this.period_ms, (newCallbackArg === undefined ? this.callbackArg : newCallbackArg));
-            }
-            _super.prototype.ResetTime.call(this);
-            return this;
-        };
-        return TimerEvent;
-    }(timer_1.Timer));
-    exports.TimerEvent = TimerEvent;
-});
-define("lib/preview", ["require", "exports", "lib/util/jquery/customEvent", "lib/util/jquery/replaceTo", "lib/util/timer/timerEvent"], function (require, exports, customEvent_1, replaceTo_1, timerEvent_1) {
-    "use strict";
-    (function (InsertionMode) {
-        InsertionMode[InsertionMode["InsertAfter"] = 0] = "InsertAfter";
-        InsertionMode[InsertionMode["InsertBefore"] = 1] = "InsertBefore";
-        InsertionMode[InsertionMode["AppendTo"] = 2] = "AppendTo";
-        InsertionMode[InsertionMode["PrependTo"] = 3] = "PrependTo";
-    })(exports.InsertionMode || (exports.InsertionMode = {}));
-    var InsertionMode = exports.InsertionMode;
-    var Preview = (function () {
-        function Preview(arg) {
-            var _this = this;
-            this.isDisabled = false;
-            this._eventCallback = function (eventObject) {
-                var args = [];
-                for (var _i = 1; _i < arguments.length; _i++) {
-                    args[_i - 1] = arguments[_i];
-                }
-                if (_this.isDisabled) {
-                    return false;
-                }
-                _this.timerEvt.Start();
-                return true;
-            };
-            this.onUpdate = new customEvent_1.Event("updatePreview", this._eventCallback);
-            this.insTarget = arg.insTarget;
-            this.insMode = arg.insMode;
-            this._delay_ms = arg.delay_ms || Preview._DEFAULT_DELAY_MS;
-            this.timerEvt = new timerEvent_1.TimerEvent(function () { _this.Update(); }, this._delay_ms);
-            this.timerEvt.resetTimeWhenStarting = true;
-        }
-        Object.defineProperty(Preview.prototype, "Delay_ms", {
-            get: function () {
-                return this._delay_ms;
-            },
-            set: function (n) {
-                this._delay_ms = n;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Preview.prototype, "IsDisabled", {
-            get: function () {
-                return this.isDisabled;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Preview.prototype.Pause = function () {
-            this.isDisabled = true;
-            return this;
-        };
-        Preview.prototype.Disable = function () {
-            this.isDisabled = true;
-            return this.Hide();
-        };
-        Preview.prototype.Enable = function () {
-            this.isDisabled = false;
-            return this.Update();
-        };
-        Object.defineProperty(Preview.prototype, "OnUpdate", {
-            get: function () {
-                return this.onUpdate;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Preview.prototype, "PreviewElement", {
-            get: function () {
-                return this.preview;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Preview.prototype.InsertPreview = function (newHtml) {
-            var $preview = $(newHtml);
-            this.preview = $preview[0];
-            switch (this.insMode) {
-                case InsertionMode.InsertAfter:
-                    $preview.insertAfter(this.insTarget);
-                    break;
-                case InsertionMode.InsertBefore:
-                    $preview.insertBefore(this.insTarget);
-                    break;
-                case InsertionMode.AppendTo:
-                    $preview.appendTo(this.insTarget);
-                    break;
-                case InsertionMode.PrependTo:
-                    $preview.prependTo(this.insTarget);
-                    break;
-                default:
-                    throw new Error("InsertionMode指定エラー");
-            }
-            return this;
-        };
-        Preview.prototype.OverwritePreview = function (newHtml) {
-            if (this.preview) {
-                this.preview = replaceTo_1.replaceTo(this.preview, newHtml)[0];
-            }
-            else {
-                this.InsertPreview(newHtml);
-            }
-            return this;
-        };
-        Preview.prototype.Show = function () {
-            return this.Update();
-        };
-        Preview.prototype.Hide = function () {
-            $(this.preview).hide();
-            return this;
-        };
-        Preview.prototype.Dispose = function () {
-            this.onUpdate.Dispose();
-            this.Disable().Hide();
-        };
-        Preview._DEFAULT_DELAY_MS = 0;
-        return Preview;
-    }());
-    exports.Preview = Preview;
-});
 define("lib/util/string/format", ["require", "exports"], function (require, exports) {
     "use strict";
     function format(template, args) {
@@ -503,7 +164,7 @@ define("lib/util/string/format", ["require", "exports"], function (require, expo
         }
         return s;
     }
-    exports.format = format;
+    return format;
 });
 define("lib/util/string/replaceLoop", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -528,7 +189,7 @@ define("lib/util/string/replaceLoop", ["require", "exports"], function (require,
             strTarget = strTarget.replace(searchValue, replaceTo);
         }
     }
-    exports.replaceLoop = replaceLoop;
+    return replaceLoop;
 });
 define("lib/util/html/escape", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -700,20 +361,44 @@ define("lib/ss/expr/parser", ["require", "exports"], function (require, exports)
     }());
     exports.Parser = Parser;
 });
-define("lib/ss/expr/formatter", ["require", "exports", "lib/util/string/format", "lib/util/string/replaceLoop", "lib/util/html/escape", "lib/util/html/tag", "lib/ss/expr/parser"], function (require, exports, format_1, replaceLoop_1, htmlEscape, tag_1, parser_1) {
+define("lib/preview/model_formatter", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var Formatter = (function () {
+        function Formatter() {
+        }
+        Formatter.prototype.Exec = function (source, extraArg) {
+            return source;
+        };
+        return Formatter;
+    }());
+    exports.Formatter = Formatter;
+});
+define("lib/ss/preview/config", ["require", "exports"], function (require, exports) {
+    "use strict";
+    exports.randomizesDiceTagResult = false;
+    exports.previewDelay_ms = 0;
+    exports.diary_showsCharCounts = true;
+});
+define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string/format", "lib/util/string/replaceLoop", "lib/util/html/escape", "lib/util/html/tag", "lib/ss/expr/parser", "lib/ss/preview/config"], function (require, exports, format, replaceLoop, htmlEscape, tag_1, parser_1, Config) {
     "use strict";
     var Formatter = (function () {
         function Formatter(args) {
             this.profile = args.profile;
-            this.template = args.template || Formatter._DEFAULT_TEMPLATE;
+            this.at3ModeAsDefault = args.at3ModeAsDefault || false;
+            this.allowsOrTag = args.allowsOrTag || false;
+            this.template = args.template || Object.create(Formatter._DEFAULT_TEMPLATE);
             this.separators = args.separators ? {
                 and: args.separators.and || Formatter._DETAULT_SEPARATORS.and,
                 or: args.separators.or || Formatter._DETAULT_SEPARATORS.or
             } : Object.create(Formatter._DETAULT_SEPARATORS);
-            this.at3ModeAsDefault = args.at3ModeAsDefault || false;
-            this.randomizesDiceTag = args.randomizesDiceTag || false;
-            this.allowsOrTag = args.allowsOrTag || false;
         }
+        Object.defineProperty(Formatter.prototype, "Profile", {
+            get: function () {
+                return this.profile;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(Formatter.prototype, "Templates", {
             get: function () {
                 return this.template;
@@ -724,13 +409,6 @@ define("lib/ss/expr/formatter", ["require", "exports", "lib/util/string/format",
         Object.defineProperty(Formatter.prototype, "Separators", {
             get: function () {
                 return this.separators;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Formatter.prototype, "Profile", {
-            get: function () {
-                return this.profile;
             },
             enumerable: true,
             configurable: true
@@ -756,19 +434,18 @@ define("lib/ss/expr/formatter", ["require", "exports", "lib/util/string/format",
             if (randomize) {
                 resultNum = Math.floor(Math.random() * 6) + 1;
             }
-            return format_1.format(Formatter._DEFAULT_DICE_TEMPLATE, { imgDir: Formatter._DEFAULT_IMG_DIR, resultNum: resultNum });
+            return format(Formatter._DEFAULT_DICE_TEMPLATE, { imgDir: Formatter._DEFAULT_IMG_DIR, resultNum: resultNum });
         };
         Formatter.prototype.Exec = function (source) {
-            var _this = this;
             // 1: escape
             var html = htmlEscape.escape(source);
             // 2: replace Deco-tags
-            html = replaceLoop_1.replaceLoop(html, Formatter.reReplace_EscapedDecoTag, "<span class='$1'>$2</span>");
+            html = replaceLoop(html, Formatter.reReplace_EscapedDecoTag, "<span class='$1'>$2</span>");
             // 3: parse and format
             html = this.Format(parser_1.Parser.Parse(html, this.at3ModeAsDefault, this.allowsOrTag));
             // 4: dice
             html = html.replace(Formatter.reReplace_EscapedDiceTag, function (match) {
-                return Formatter.GenerateDiceTag(_this.randomizesDiceTag);
+                return Formatter.GenerateDiceTag(Config.randomizesDiceTagResult);
             });
             // 5: BR
             html = tag_1.lineBreaksToBR(html);
@@ -797,24 +474,665 @@ define("lib/ss/expr/formatter", ["require", "exports", "lib/util/string/format",
                     }
                     var name = exp.ChangedName === null ? _this.profile.nickname : exp.ChangedName;
                     var bodyHTML = exp.Text;
-                    return format_1.format(template, { iconURL: iconURL, name: name, nameColor: _this.profile.nameColor, bodyHTML: bodyHTML });
+                    return format(template, { iconURL: iconURL, name: name, nameColor: _this.profile.nameColor, bodyHTML: bodyHTML });
                 }).join(_this.separators.and);
             }).join(this.separators.or);
         };
+        //     public static _DEFAULT_TEMPLATE: IFormatTemplate = {
+        //         Body:
+        // `<table class="WordsTable" CELLSPACING=0 CELLPADDING=0>
+        //     <tr>
+        //         <td class="Icon" rowspan="2"><IMG border = 0 alt=Icon align=left src="{iconURL}" width=60 height=60></td>
+        //         <td class="Name"><font color="{nameColor}" class="B">{name}</font></td>
+        //     </tr>
+        //     <tr>
+        //         <td class="Words">「{bodyHTML}」</td>
+        //     </tr>
+        // </table>`,
+        //         Body_At3ModeAndIcon:
+        // `<table class="WordsTable" CELLSPACING=0 CELLPADDING=0><tr>
+        //     <td class="Icon"><IMG border = 0 alt=Icon align=left src="{iconURL}" width=60 height=60></td>
+        //     <td class="String">{bodyHTML}</td>
+        // </tr></table>`,
+        //         Body_At3Mode:
+        // `<table class="WordsTable" CELLSPACING=0 CELLPADDING=0><tr>
+        //     <td class="Icon"/>
+        //     <td class="String">{bodyHTML}</td>
+        // </tr></table>`
+        //     };
+        // 改行を入れるとフォーマットの時に酷いことになった。上がその残骸
         Formatter._DEFAULT_TEMPLATE = {
             Body: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\" rowspan=\"2\"><IMG border = 0 alt=Icon align=left src=\"{iconURL}\" width=60 height=60></td><td class=\"Name\"><font color=\"{nameColor}\" class=\"B\">{name}</font></td></tr><tr><td class=\"Words\">\u300C{bodyHTML}\u300D</td></tr></table>",
             Body_At3ModeAndIcon: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"><IMG border = 0 alt=Icon align=left src=\"{iconURL}\" width=60 height=60></td><td class=\"String\">{bodyHTML}</td></tr></table>",
-            Body_At3Mode: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"></td><td class=\"String\">{bodyHTML}</td></tr></table>"
+            Body_At3Mode: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"/><td class=\"String\">{bodyHTML}</td></tr></table>"
         };
         // { imgDir, resultNum }
         Formatter._DEFAULT_DICE_TEMPLATE = "<img alt=\"dice\" src=\"{imgDir}d{resultNum}.png\" border=\"0\" height=\"20\" width=\"20\">";
         Formatter._DEFAULT_IMG_DIR = "http://www.sssloxia.jp/p/";
-        Formatter._DETAULT_SEPARATORS = { and: "", or: "<div class='separator_or'></div>" };
+        Formatter._DETAULT_SEPARATORS = { and: "", or: "<div class='separator_or'/>" };
         Formatter.reReplace_EscapedDecoTag = new RegExp(htmlEscape.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "g");
         Formatter.reReplace_EscapedDiceTag = new RegExp(htmlEscape.escape("<D>"), "g");
         return Formatter;
     }());
     exports.Formatter = Formatter;
+});
+define("lib/interface/disposable", ["require", "exports"], function (require, exports) {
+    "use strict";
+});
+define("lib/preview/model", ["require", "exports", "lib/preview/model_formatter"], function (require, exports, model_formatter_1) {
+    "use strict";
+    var PreviewModel = (function () {
+        function PreviewModel(formatter) {
+            if (formatter === void 0) { formatter = new model_formatter_1.Formatter(); }
+            this.formatter = formatter;
+            this.source = null;
+            this.previewHTML = null;
+            this.isVisible = false;
+            this.isDisabled = false;
+        }
+        Object.defineProperty(PreviewModel.prototype, "PreviewHTML", {
+            get: function () {
+                return this.previewHTML;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        PreviewModel.prototype.Update = function (source, extraArg) {
+            if (this.isDisabled) {
+                return false;
+            }
+            // if (!this.isVisible) {
+            //     return true;
+            // }
+            if (source === this.source) {
+                return false;
+            }
+            this.source = source;
+            this.previewHTML = this.formatter.Exec(source, extraArg);
+            return true;
+        };
+        Object.defineProperty(PreviewModel.prototype, "IsVisible", {
+            get: function () {
+                return this.isVisible;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        PreviewModel.prototype.SetAsHidden = function () {
+            this.isVisible = false;
+            return this;
+        };
+        PreviewModel.prototype.SetAsShown = function () {
+            this.isVisible = true;
+            return this;
+        };
+        Object.defineProperty(PreviewModel.prototype, "IsDisabled", {
+            get: function () {
+                return this.isDisabled;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        PreviewModel.prototype.SetAsDisabled = function () {
+            this.isDisabled = true;
+            return this;
+        };
+        PreviewModel.prototype.SetAsEnabled = function () {
+            this.isDisabled = false;
+            return this;
+        };
+        PreviewModel.prototype.Dispose = function () {
+            this.previewHTML = null;
+            this.isDisabled = true;
+            this.isVisible = false;
+        };
+        return PreviewModel;
+    }());
+    exports.PreviewModel = PreviewModel;
+});
+define("lib/ss/preview/partyBBS/model_formatter", ["require", "exports", "lib/util/string/format", "lib/ss/preview/model_formatter"], function (require, exports, format, model_formatter_2) {
+    "use strict";
+    var PartyBBSFormatter = (function (_super) {
+        __extends(PartyBBSFormatter, _super);
+        function PartyBBSFormatter(args) {
+            _super.call(this, args);
+        }
+        PartyBBSFormatter.prototype.Exec = function (source, extraArg) {
+            if (extraArg === void 0) { extraArg = { title: "", name: "" }; }
+            var html = _super.prototype.Exec.call(this, source);
+            if (extraArg.title === "") {
+                extraArg = Object.create(extraArg);
+                extraArg.title = "無題";
+            }
+            var template = format(PartyBBSFormatter.TEMPLATE_CONTAINER, extraArg);
+            return format(template, { html: html });
+        };
+        PartyBBSFormatter.TEMPLATE_CONTAINER = "<div class=\"BackBoard\">\n    <b>xxx \uFF1A{title}</b> &nbsp;&nbsp;{name}&#12288;\uFF0820xx/xx/xx xx:xx:xx\uFF09 <br> <br>{html}<br><br><br clear=\"ALL\">\n</div>";
+        return PartyBBSFormatter;
+    }(model_formatter_2.Formatter));
+    exports.PartyBBSFormatter = PartyBBSFormatter;
+});
+define("lib/ss/preview/partyBBS/model", ["require", "exports", "lib/preview/model", "lib/ss/preview/partyBBS/model_formatter"], function (require, exports, model_1, model_formatter_3) {
+    "use strict";
+    var PartyBBSModel = (function (_super) {
+        __extends(PartyBBSModel, _super);
+        function PartyBBSModel(profile) {
+            _super.call(this, new model_formatter_3.PartyBBSFormatter({
+                profile: profile,
+                template: PartyBBSModel.TEMPLATE,
+                at3ModeAsDefault: true
+            }));
+        }
+        PartyBBSModel.prototype.Update = function (source, extraArg) {
+            if (extraArg === void 0) { extraArg = { title: "", name: "" }; }
+            if (this.isDisabled) {
+                return false;
+            }
+            if (source === this.source && extraArg.title === this.title && extraArg.name === this.name) {
+                return false;
+            }
+            this.source = source;
+            this.title = extraArg.title;
+            this.name = extraArg.name;
+            this.previewHTML = this.formatter.Exec(source, extraArg);
+            return true;
+        };
+        PartyBBSModel.TEMPLATE = null;
+        return PartyBBSModel;
+    }(model_1.PreviewModel));
+    exports.PartyBBSModel = PartyBBSModel;
+});
+define("lib/preview/view", ["require", "exports", "jquery"], function (require, exports, $) {
+    "use strict";
+    (function (InsertionMode) {
+        InsertionMode[InsertionMode["InsertAfter"] = 0] = "InsertAfter";
+        InsertionMode[InsertionMode["InsertBefore"] = 1] = "InsertBefore";
+        InsertionMode[InsertionMode["AppendTo"] = 2] = "AppendTo";
+        InsertionMode[InsertionMode["PrependTo"] = 3] = "PrependTo";
+    })(exports.InsertionMode || (exports.InsertionMode = {}));
+    var InsertionMode = exports.InsertionMode;
+    var PreviewView = (function () {
+        function PreviewView(insertion) {
+            this.insertion = insertion;
+        }
+        Object.defineProperty(PreviewView.prototype, "PreviewContainer", {
+            get: function () {
+                return this.$container ? this.$container[0] : null;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        PreviewView.prototype.InsertContainer = function () {
+            this.$container = $(PreviewView.containerHTML);
+            switch (this.insertion.mode) {
+                case InsertionMode.InsertAfter:
+                    this.$container.insertAfter(this.insertion.target);
+                    break;
+                case InsertionMode.InsertBefore:
+                    this.$container.insertBefore(this.insertion.target);
+                    break;
+                case InsertionMode.AppendTo:
+                    this.$container.appendTo(this.insertion.target);
+                    break;
+                case InsertionMode.PrependTo:
+                    this.$container.prependTo(this.insertion.target);
+                    break;
+                default:
+                    throw new Error("InsertionMode指定エラー");
+            }
+            return this;
+        };
+        PreviewView.prototype.Hide = function () {
+            if (!this.$container) {
+                return;
+            }
+            this.$container.css("display", "none");
+            return this;
+        };
+        PreviewView.prototype.Show = function () {
+            if (!this.$container) {
+                return;
+            }
+            this.$container.css("display", "");
+            return this;
+        };
+        PreviewView.prototype.Update = function (model) {
+            if (!this.$container) {
+                this.InsertContainer();
+            }
+            if (model.IsVisible) {
+                this.Show();
+            }
+            else {
+                this.Hide();
+            }
+            if (model.IsDisabled) {
+                return false;
+            }
+            this.$container.html(model.PreviewHTML);
+            return true;
+        };
+        PreviewView.prototype.Dispose = function () {
+            this.$container.remove();
+        };
+        PreviewView.containerHTML = "<div class=\"preview\"/>";
+        return PreviewView;
+    }());
+    exports.PreviewView = PreviewView;
+});
+define("lib/util/array/set", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var FakeSet = (function () {
+        function FakeSet(equalityValidator, array) {
+            if (equalityValidator === void 0) { equalityValidator = function (v1, v2) { return (v1 === v2); }; }
+            this.equalityValidator = equalityValidator;
+            if (array && array instanceof Array) {
+                this.innerArray = array.concat();
+            }
+            else {
+                this.innerArray = [];
+            }
+        }
+        FakeSet.prototype.has = function (e) {
+            return this.indexOf(e) !== -1;
+        };
+        FakeSet.prototype.indexOf = function (e) {
+            var _this = this;
+            var index;
+            var hasFound = this.innerArray.some(function (v, i, a) {
+                index = i;
+                return _this.equalityValidator(v, e);
+            });
+            if (hasFound) {
+                return index;
+            }
+            else {
+                return -1;
+            }
+        };
+        FakeSet.prototype.add = function (e) {
+            if (this.has(e)) {
+                return this;
+            }
+            this.innerArray.push(e);
+            return this;
+        };
+        // 名称がdeleteだとYUIに弾かれるが故に再現できない。
+        FakeSet.prototype.del = function (e) {
+            var index = this.indexOf(e);
+            if (index === -1) {
+                return false;
+            }
+            this.innerArray.splice(index, 1);
+            return true;
+        };
+        FakeSet.prototype.clear = function () {
+            this.innerArray = [];
+        };
+        FakeSet.prototype.forEach = function (callback) {
+            for (var _i = 0, _a = this.innerArray; _i < _a.length; _i++) {
+                var i = _a[_i];
+                callback(i, i, this);
+            }
+        };
+        Object.defineProperty(FakeSet.prototype, "size", {
+            get: function () {
+                return this.innerArray.length;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return FakeSet;
+    }());
+    return FakeSet;
+});
+define("lib/util/jquery/customEvent", ["require", "exports", "lib/util/array/set", "jquery"], function (require, exports, FakeSet, $) {
+    "use strict";
+    function ValidateEventsEquality(v1, v2) {
+        return v1.target.is(v2) && v1.eventType === v2.eventType;
+    }
+    var Event = (function () {
+        function Event(name, callback) {
+            var _this = this;
+            this.name = name;
+            this.callback = callback;
+            this._wrappedCallback = function (e) {
+                if (_this.callback) {
+                    _this.callback(e);
+                }
+                $(_this).triggerHandler(_this.name);
+            };
+            this.evts = new FakeSet(ValidateEventsEquality);
+            // code...
+        }
+        Object.defineProperty(Event.prototype, "Name", {
+            get: function () {
+                return this.name;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Event.prototype.RegisterTrigger = function (evt) {
+            if (this.evts.has(evt)) {
+                return false;
+            }
+            $(evt.target).on(evt.eventType, this._wrappedCallback);
+            this.evts.add(evt);
+            return true;
+        };
+        Event.prototype.RegisterTriggers = function (evts) {
+            for (var _i = 0, evts_1 = evts; _i < evts_1.length; _i++) {
+                var evt = evts_1[_i];
+                this.RegisterTrigger(evt);
+            }
+            return this;
+        };
+        Event.prototype.UnregisterTrigger = function (evt) {
+            if (!this.evts.has(evt)) {
+                return false;
+            }
+            $(evt.target).off(evt.eventType, this._wrappedCallback);
+            return this.evts.del(evt);
+        };
+        Event.prototype.UnregisterTriggers = function (evts) {
+            if (!evts) {
+                this.UnregisterAllTriggers();
+            }
+            for (var _i = 0, evts_2 = evts; _i < evts_2.length; _i++) {
+                var evt = evts_2[_i];
+                this.UnregisterTrigger(evt);
+            }
+            return this;
+        };
+        Event.prototype.UnregisterAllTriggers = function () {
+            var _this = this;
+            this.evts.forEach(function (evt) {
+                $(evt.target).off(evt.eventType, _this._wrappedCallback);
+            });
+            this.evts.clear();
+            return this;
+        };
+        Event.prototype.Dispose = function () {
+            this.UnregisterAllTriggers();
+        };
+        return Event;
+    }());
+    exports.Event = Event;
+});
+define("lib/util/timer/timer", ["require", "exports"], function (require, exports) {
+    "use strict";
+    // start, stop, resetTime, time
+    var Timer = (function () {
+        function Timer() {
+            this.date_start = 0;
+            this.time_ms = 0;
+            this.resetTimeWhenStarting = false;
+        }
+        Object.defineProperty(Timer.prototype, "Time_ms", {
+            get: function () {
+                return this.time_ms + Date.now() - this.date_start;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Timer.prototype, "isRunning", {
+            get: function () {
+                return !!this.date_start;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Timer.prototype.Start = function () {
+            if (this.isRunning && !this.resetTimeWhenStarting) {
+                return;
+            }
+            if (this.resetTimeWhenStarting) {
+                this.ResetTime();
+            }
+            this.date_start = Date.now();
+            return this;
+        };
+        Timer.prototype.Stop = function () {
+            return this.Pause().ResetTime();
+        };
+        Timer.prototype.Pause = function () {
+            if (!this.isRunning) {
+                return;
+            }
+            this.time_ms += Date.now() - this.date_start;
+            this.date_start = 0;
+            return this;
+        };
+        Timer.prototype.ResetTime = function () {
+            if (this.isRunning) {
+                this.date_start = Date.now();
+            }
+            else {
+                this.date_start = 0;
+            }
+            this.time_ms = 0;
+            return this;
+        };
+        Timer.prototype.PrintTime = function () {
+            console.log("time(ms): " + this.Time_ms);
+            return this;
+        };
+        return Timer;
+    }());
+    return Timer;
+});
+define("lib/util/timer/timerEvent", ["require", "exports", "lib/util/timer/timer"], function (require, exports, Timer) {
+    "use strict";
+    var TimerEvent = (function (_super) {
+        __extends(TimerEvent, _super);
+        function TimerEvent(afterPeriod, period_ms) {
+            _super.call(this);
+            this.afterPeriod = afterPeriod;
+            this.period_ms = period_ms;
+            this.id = 0;
+        }
+        TimerEvent.prototype.setCallbackArg = function (a) {
+            if (a === undefined) {
+                return;
+            }
+            this.callbackArg = a;
+        };
+        TimerEvent.prototype.Start = function (callbackArg) {
+            this.setCallbackArg(callbackArg);
+            if (!this.isRunning) {
+                var period_ms = this.period_ms - this.time_ms;
+                if (period_ms < 0) {
+                    period_ms = 0;
+                }
+                this.id = setTimeout(this.afterPeriod, period_ms, callbackArg);
+            }
+            _super.prototype.Start.call(this);
+            return this;
+        };
+        TimerEvent.prototype.Stop = function (callsCallback, newCallbackArg) {
+            if (callsCallback === void 0) { callsCallback = false; }
+            if (callsCallback) {
+                this.setCallbackArg(newCallbackArg);
+                this.afterPeriod((newCallbackArg === undefined ? this.callbackArg : newCallbackArg));
+            }
+            return this.Pause().ResetTime();
+        };
+        TimerEvent.prototype.Pause = function () {
+            if (!this.isRunning) {
+                return;
+            }
+            clearTimeout(this.id);
+            this.id = 0;
+            _super.prototype.Pause.call(this);
+            return this;
+        };
+        TimerEvent.prototype.ResetTime = function (newCallbackArg) {
+            this.setCallbackArg(newCallbackArg);
+            if (this.isRunning) {
+                clearTimeout(this.id);
+                this.id = setTimeout(this.afterPeriod, this.period_ms, (newCallbackArg === undefined ? this.callbackArg : newCallbackArg));
+            }
+            _super.prototype.ResetTime.call(this);
+            return this;
+        };
+        TimerEvent.prototype.Dispose = function () {
+            this.Stop();
+        };
+        return TimerEvent;
+    }(Timer));
+    return TimerEvent;
+});
+define("lib/preview/controller", ["require", "exports", "lib/util/jquery/customEvent", "lib/util/timer/timerEvent"], function (require, exports, customEvent_1, TimerEvent) {
+    "use strict";
+    var PreviewController = (function () {
+        function PreviewController(arg) {
+            var _this = this;
+            this.onUpdating = new customEvent_1.Event("onUpdatingPreview", function (eventObject) {
+                _this.callback_onUpdating(eventObject);
+            });
+            this.callback_onUpdating = function (eventObject) {
+                if (_this.model.IsDisabled) {
+                    return false;
+                }
+                _this.timerEvt.Start();
+                return true;
+            };
+            this.model = arg.model;
+            this.view = arg.view;
+            this.Delay_ms = arg.delay_ms === undefined ? PreviewController._DEFAULT_DELAY_MS : arg.delay_ms;
+        }
+        Object.defineProperty(PreviewController.prototype, "OnUpdating", {
+            get: function () {
+                return this.onUpdating;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PreviewController.prototype, "Delay_ms", {
+            get: function () {
+                return this.delay_ms;
+            },
+            set: function (n) {
+                this.delay_ms = n;
+                this.InitTimerEvent();
+            },
+            enumerable: true,
+            configurable: true
+        });
+        PreviewController.prototype.InitTimerEvent = function () {
+            var _this = this;
+            if (this.timerEvt) {
+                this.timerEvt.Dispose();
+            }
+            this.timerEvt = new TimerEvent(function () {
+                // この位置で毎回modelの可視状態を初期化。
+                _this.model.SetAsShown();
+                _this.Update();
+            }, this.delay_ms);
+            this.timerEvt.resetTimeWhenStarting = true;
+            return this;
+        };
+        // manual
+        PreviewController.prototype.Show = function () {
+            this.model.SetAsShown();
+            return this.Update();
+        };
+        // manual
+        PreviewController.prototype.Hide = function () {
+            this.model.SetAsHidden();
+            return this.Update();
+        };
+        // manual
+        PreviewController.prototype.Enable = function () {
+            this.model.SetAsEnabled();
+            return this.Update();
+        };
+        // manual
+        PreviewController.prototype.Disable = function () {
+            this.model.SetAsDisabled().SetAsHidden();
+            return this.Update();
+        };
+        // manual
+        PreviewController.prototype.Pause = function () {
+            this.model.SetAsDisabled();
+            return this.Update();
+        };
+        PreviewController.prototype.Dispose = function () {
+            this.model.Dispose();
+            this.view.Dispose();
+            this.timerEvt.Dispose();
+            this.onUpdating.Dispose();
+        };
+        PreviewController._DEFAULT_DELAY_MS = 0;
+        return PreviewController;
+    }());
+    exports.PreviewController = PreviewController;
+});
+define("lib/ss/preview/controller", ["require", "exports", "lib/preview/controller", "lib/ss/preview/config"], function (require, exports, controller_1, Config) {
+    "use strict";
+    var SSPreviewController = (function (_super) {
+        __extends(SSPreviewController, _super);
+        function SSPreviewController(arg) {
+            var delay_ms = (arg.delay_ms === undefined) ? Config.previewDelay_ms : arg.delay_ms;
+            _super.call(this, arg);
+            this.textbox = arg.textbox;
+            this.OnUpdating.RegisterTrigger({ target: $(this.textbox), eventType: "keyup" });
+        }
+        SSPreviewController.prototype.Update = function (extraArg) {
+            var source = this.textbox.value;
+            if (source === "") {
+                this.model.SetAsHidden();
+            }
+            this.model.Update(source, extraArg);
+            this.view.Update(this.model);
+            return this;
+        };
+        return SSPreviewController;
+    }(controller_1.PreviewController));
+    exports.SSPreviewController = SSPreviewController;
+});
+define("lib/ss/preview/partyBBS/controller", ["require", "exports", "lib/ss/preview/partyBBS/model", "lib/preview/view", "lib/ss/preview/controller"], function (require, exports, model_2, view_1, controller_2) {
+    "use strict";
+    var PartyBBSController = (function (_super) {
+        __extends(PartyBBSController, _super);
+        function PartyBBSController(arg) {
+            var model = new model_2.PartyBBSModel(arg.profile);
+            var view = new view_1.PreviewView(arg.insertion);
+            _super.call(this, { delay_ms: arg.delay_ms, model: model, view: view, textbox: arg.textbox });
+            this.titleInput = arg.titleInput;
+            this.nameInput = arg.nameInput;
+            this.OnUpdating.RegisterTriggers([
+                { target: $(this.titleInput), eventType: "keyup" },
+                { target: $(this.nameInput), eventType: "keyup" }
+            ]);
+        }
+        PartyBBSController.prototype.Update = function () {
+            var name = this.nameInput.value;
+            var title = this.titleInput.value;
+            if (name === "") {
+                this.model.SetAsHidden();
+            }
+            return _super.prototype.Update.call(this, { name: name, title: title });
+        };
+        return PartyBBSController;
+    }(controller_2.SSPreviewController));
+    exports.PartyBBSController = PartyBBSController;
+});
+define("lib/ss/preview/diary/model_formatter", ["require", "exports", "lib/util/string/format", "lib/ss/preview/model_formatter"], function (require, exports, format, model_formatter_4) {
+    "use strict";
+    var DiaryFormatter = (function (_super) {
+        __extends(DiaryFormatter, _super);
+        function DiaryFormatter(arg) {
+            _super.call(this, arg);
+        }
+        DiaryFormatter.prototype.Exec = function (source) {
+            var html = _super.prototype.Exec.call(this, source);
+            return format(DiaryFormatter.TEMPLATE_CONTAINER, { html: html });
+        };
+        DiaryFormatter.TEMPLATE_CONTAINER = "<div name=\"Diary\">{html}</div>";
+        return DiaryFormatter;
+    }(model_formatter_4.Formatter));
+    exports.DiaryFormatter = DiaryFormatter;
 });
 define("lib/ss/expr/rule", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -825,154 +1143,168 @@ define("lib/ss/expr/rule", ["require", "exports"], function (require, exports) {
     }
     exports.CountExprChars = CountExprChars;
 });
-define("lib/ss/preview", ["require", "exports", "lib/util/string/format", "lib/preview", "lib/ss/expr/formatter", "lib/ss/expr/rule"], function (require, exports, format_2, Preview, formatter_1, rule_1) {
+define("lib/ss/preview/diary/model", ["require", "exports", "lib/ss/preview/diary/model_formatter", "lib/preview/model", "lib/ss/expr/rule", "lib/ss/preview/config"], function (require, exports, model_formatter_5, model_3, rule_1, Config) {
     "use strict";
-    exports.randomizesDiceTagResult = false;
-    var SSPreview = (function (_super) {
-        __extends(SSPreview, _super);
-        function SSPreview(arg) {
-            _super.call(this, { insTarget: arg.insTarget, insMode: arg.insMode, delay_ms: SSPreview.DELAY_MS });
-            this.textbox = arg.textbox;
-            this.profile = arg.profile;
-            this.formatter = arg.formatter;
-            if (arg.hasOwnProperty("template_container")) {
-                this.template_container = arg.template_container;
-            }
-            else {
-                this.template_container = "<div class='preview'>{html}</div>";
-            }
-            this.OnUpdate.RegisterEvent($(this.textbox), "keyup");
-        }
-        SSPreview.prototype.Update = function (extraFormatArg) {
-            var source = this.textbox.value;
-            if (source === "") {
-                return this.Hide();
-            }
-            var formatArg = extraFormatArg ? Object.create(extraFormatArg) : {};
-            formatArg["html"] = this.formatter.Exec(source);
-            var previewHTML = format_2.format(this.template_container, formatArg);
-            this.OverwritePreview(previewHTML);
-            return this;
-        };
-        SSPreview.DELAY_MS = 0;
-        return SSPreview;
-    }(Preview.Preview));
-    exports.SSPreview = SSPreview;
-    var SerifPreview = (function (_super) {
-        __extends(SerifPreview, _super);
-        function SerifPreview(arg) {
-            var formatter = new formatter_1.Formatter({ profile: arg.profile, at3ModeAsDefault: false, template: SerifPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult, allowsOrTag: true });
-            _super.call(this, {
-                insTarget: arg.insTarget,
-                insMode: arg.insMode,
-                textbox: arg.textbox,
+    var DiaryModel = (function (_super) {
+        __extends(DiaryModel, _super);
+        function DiaryModel(arg) {
+            _super.call(this, new model_formatter_5.DiaryFormatter({
                 profile: arg.profile,
-                formatter: formatter
-            });
-        }
-        SerifPreview.TEMPLATE = null;
-        return SerifPreview;
-    }(SSPreview));
-    exports.SerifPreview = SerifPreview;
-    var MessagePreview = (function (_super) {
-        __extends(MessagePreview, _super);
-        function MessagePreview(arg) {
-            var formatter = new formatter_1.Formatter({ profile: arg.profile, at3ModeAsDefault: false, template: MessagePreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
-            _super.call(this, {
-                insTarget: arg.insTarget,
-                insMode: arg.insMode,
-                textbox: arg.textbox,
-                profile: arg.profile,
-                formatter: formatter
-            });
-        }
-        MessagePreview.TEMPLATE = null;
-        return MessagePreview;
-    }(SSPreview));
-    exports.MessagePreview = MessagePreview;
-    var PartyBBSPreview = (function (_super) {
-        __extends(PartyBBSPreview, _super);
-        function PartyBBSPreview(args) {
-            var formatter = new formatter_1.Formatter({ profile: args.profile, at3ModeAsDefault: true, template: PartyBBSPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
-            _super.call(this, {
-                insTarget: args.insTarget,
-                insMode: args.insMode,
-                textbox: args.textbox,
-                profile: args.profile,
-                formatter: formatter
-            });
-            this.nameBox = args.nameBox;
-            this.titleBox = args.titleBox;
-            this.OnUpdate.RegisterEvent([
-                { target: $(this.nameBox), eventType: "keyup" },
-                { target: $(this.titleBox), eventType: "keyup" }
-            ]);
-        }
-        PartyBBSPreview.prototype.Update = function () {
-            this.template_container = PartyBBSPreview.TEMPLATE_CONTAINER;
-            var title = this.titleBox.value || "無題";
-            var name = this.nameBox.value;
-            _super.prototype.Update.call(this, { title: title, name: name });
-            return this;
-        };
-        PartyBBSPreview.TEMPLATE = null;
-        PartyBBSPreview.TEMPLATE_CONTAINER = "<div class='preview'><div class='BackBoard'><b>xxx ：{title}</b> &nbsp;&nbsp;{name}&#12288;（20xx/xx/xx xx:xx:xx） <br> <br>{html}<br><br><br clear='ALL'></div></div>";
-        return PartyBBSPreview;
-    }(SSPreview));
-    exports.PartyBBSPreview = PartyBBSPreview;
-    var DiaryPreview = (function (_super) {
-        __extends(DiaryPreview, _super);
-        function DiaryPreview(args) {
-            var formatter = new formatter_1.Formatter({ profile: args.profile, at3ModeAsDefault: true, template: DiaryPreview.TEMPLATE, randomizesDiceTag: exports.randomizesDiceTagResult });
-            _super.call(this, { insTarget: args.insTarget,
-                insMode: args.insMode,
-                textbox: args.textbox,
-                profile: args.profile,
-                formatter: formatter,
-                template_container: DiaryPreview.TEMPLATE_CONTAINER
-            });
-            this.countsChars = args.countsChars || false;
-        }
-        DiaryPreview.prototype.UpdateContainer = function (counts) {
-            if (this.countsChars) {
-                this.template_container = DiaryPreview.SelectCharCountContainer(counts);
+                template: DiaryModel.TEMPLATE,
+                at3ModeAsDefault: true
+            }));
+            if (typeof arg.showsCharCounts === "boolean") {
+                this.showsCharCounts = arg.showsCharCounts;
             }
             else {
-                this.template_container = DiaryPreview.TEMPLATE_CONTAINER;
+                this.showsCharCounts = Config.diary_showsCharCounts || false;
             }
-            return this;
+        }
+        Object.defineProperty(DiaryModel.prototype, "ShowsCharCounts", {
+            get: function () {
+                return this.showsCharCounts;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(DiaryModel.prototype, "CharCounts", {
+            get: function () {
+                return this.charCounts;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        DiaryModel.prototype.Update = function (source) {
+            this.charCounts = rule_1.CountExprChars(source);
+            return _super.prototype.Update.call(this, source);
         };
-        DiaryPreview.SelectCharCountContainer = function (c) {
-            var charCountHTML;
-            if (c.charCount > DiaryPreview.MAX_LENGTH_OF_CHARS) {
-                charCountHTML = "<span name='charCount' class='char_count char_count_over'>{charCount}</span>";
+        DiaryModel.TEMPLATE = null;
+        DiaryModel.MAX_LENGTH_OF_CHARS = 5000;
+        DiaryModel.MAX_COUNT_OF_LFS = 2500;
+        return DiaryModel;
+    }(model_3.PreviewModel));
+    exports.DiaryModel = DiaryModel;
+});
+define("lib/ss/preview/diary/view", ["require", "exports", "lib/util/string/format", "lib/ss/preview/diary/model", "lib/preview/view"], function (require, exports, format, model_4, view_2) {
+    "use strict";
+    var DiaryView = (function (_super) {
+        __extends(DiaryView, _super);
+        function DiaryView(insertion) {
+            _super.call(this, insertion);
+        }
+        DiaryView.BuildCharCountLine = function (counts) {
+            var html = DiaryView.TEMPLATE_CHARCOUNTS;
+            html = format(html, {
+                charCount: counts.charCount,
+                charCountMax: model_4.DiaryModel.MAX_LENGTH_OF_CHARS,
+                lfCount: counts.lfCount,
+                lfCountMax: model_4.DiaryModel.MAX_COUNT_OF_LFS
+            });
+            var $p = $(html);
+            if (counts.charCount > model_4.DiaryModel.MAX_LENGTH_OF_CHARS) {
+                $p.children("[name=charCount]").addClass("over");
             }
-            else {
-                charCountHTML = "<span name='charCount' class='char_count'>{charCount}</span>";
+            if (counts.lfCount > model_4.DiaryModel.MAX_COUNT_OF_LFS) {
+                $p.children("[name=lfCount]").addClass("over");
             }
-            var lfCountHTML;
-            if (c.lfCount > DiaryPreview.MAX_COUNT_OF_LF) {
-                lfCountHTML = "<span name='lfCount' class='lf_count lf_count_over'>{lfCount}</span>";
-            }
-            else {
-                lfCountHTML = "<span name='lfCount' class='lf_count'>{lfCount}</span>";
-            }
-            return format_2.format(DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR, { charCount: charCountHTML, lfCount: lfCountHTML });
+            return $p;
         };
-        DiaryPreview.prototype.Update = function () {
-            var counts = rule_1.CountExprChars(this.textbox.value);
-            this.UpdateContainer(counts);
-            _super.prototype.Update.call(this, counts);
-            return this;
+        DiaryView.prototype.Update = function (model) {
+            if (!_super.prototype.Update.call(this, model)) {
+                return false;
+            }
+            if (model.ShowsCharCounts) {
+                this.$container.prepend(DiaryView.BuildCharCountLine(model.CharCounts));
+            }
+            return true;
         };
-        DiaryPreview.TEMPLATE = null;
-        DiaryPreview.TEMPLATE_CONTAINER = "<div class='preview'><div class='tablestyle3'>{html}</div></div>";
-        DiaryPreview.TEMPLATE_CONTAINER_COUNTS_CHAR = "<div class='preview'><p class='char_count_line'><span class='char_count_cnt'>{charCount} / 5000</span> <span class='lf_count_cnt'>(改行: {lfCount} / 2500)</span></p><div class='tablestyle3'>{html}</div></div>";
-        DiaryPreview.MAX_LENGTH_OF_CHARS = 5000;
-        DiaryPreview.MAX_COUNT_OF_LF = 2500;
-        return DiaryPreview;
-    }(SSPreview));
-    exports.DiaryPreview = DiaryPreview;
+        DiaryView.TEMPLATE_CHARCOUNTS = "<p class=\"char_count_line\">\n    <span class=\"char_count_cnt\"><span name=\"charCount\" class=\"char_count\">{charCount}</span> / {charCountMax}</span> <span class=\"lf_count_cnt\">(\u6539\u884C: <span name=\"lfCount\" class=\"lf_count\">{lfCount}</span> / {lfCountMax})</span>\n</p>";
+        return DiaryView;
+    }(view_2.PreviewView));
+    exports.DiaryView = DiaryView;
+});
+define("lib/ss/preview/diary/controller", ["require", "exports", "lib/ss/preview/diary/model", "lib/ss/preview/diary/view", "lib/ss/preview/controller"], function (require, exports, model_5, view_3, controller_3) {
+    "use strict";
+    var DiaryController = (function (_super) {
+        __extends(DiaryController, _super);
+        function DiaryController(arg) {
+            var model = new model_5.DiaryModel({ profile: arg.profile, showsCharCounts: arg.showsCharCounts });
+            var view = new view_3.DiaryView(arg.insertion);
+            _super.call(this, { delay_ms: arg.delay_ms, model: model, view: view, textbox: arg.textbox });
+        }
+        return DiaryController;
+    }(controller_3.SSPreviewController));
+    exports.DiaryController = DiaryController;
+});
+define("lib/ss/preview/serif/model", ["require", "exports", "lib/ss/preview/model_formatter", "lib/preview/model"], function (require, exports, model_formatter_6, model_6) {
+    "use strict";
+    var SerifModel = (function (_super) {
+        __extends(SerifModel, _super);
+        function SerifModel(profile) {
+            _super.call(this, new model_formatter_6.Formatter({
+                profile: profile,
+                template: SerifModel.TEMPLATE,
+                allowsOrTag: true
+            }));
+        }
+        SerifModel.TEMPLATE = null;
+        return SerifModel;
+    }(model_6.PreviewModel));
+    exports.SerifModel = SerifModel;
+});
+define("lib/ss/preview/serif/controller", ["require", "exports", "lib/ss/preview/serif/model", "lib/preview/view", "lib/ss/preview/controller"], function (require, exports, model_7, view_4, controller_4) {
+    "use strict";
+    var SerifController = (function (_super) {
+        __extends(SerifController, _super);
+        function SerifController(arg) {
+            var model = new model_7.SerifModel(arg.profile);
+            var view = new view_4.PreviewView(arg.insertion);
+            _super.call(this, { delay_ms: arg.delay_ms, model: model, view: view, textbox: arg.textbox });
+        }
+        return SerifController;
+    }(controller_4.SSPreviewController));
+    exports.SerifController = SerifController;
+});
+define("lib/ss/preview/message/model", ["require", "exports", "lib/ss/preview/model_formatter", "lib/preview/model"], function (require, exports, model_formatter_7, model_8) {
+    "use strict";
+    var MessageModel = (function (_super) {
+        __extends(MessageModel, _super);
+        function MessageModel(profile) {
+            _super.call(this, new model_formatter_7.Formatter({
+                profile: profile,
+                template: MessageModel.TEMPLATE
+            }));
+        }
+        MessageModel.TEMPLATE = null;
+        return MessageModel;
+    }(model_8.PreviewModel));
+    exports.MessageModel = MessageModel;
+});
+define("lib/ss/preview/message/controller", ["require", "exports", "lib/ss/preview/message/model", "lib/preview/view", "lib/ss/preview/controller"], function (require, exports, model_9, view_5, controller_5) {
+    "use strict";
+    var MessageController = (function (_super) {
+        __extends(MessageController, _super);
+        function MessageController(arg) {
+            var model = new model_9.MessageModel(arg.profile);
+            var view = new view_5.PreviewView(arg.insertion);
+            _super.call(this, { delay_ms: arg.delay_ms, model: model, view: view, textbox: arg.textbox });
+        }
+        return MessageController;
+    }(controller_5.SSPreviewController));
+    exports.MessageController = MessageController;
+});
+define("lib/ss/preview/controllers", ["require", "exports", "lib/ss/preview/partyBBS/controller", "lib/ss/preview/diary/controller", "lib/ss/preview/serif/controller", "lib/ss/preview/message/controller"], function (require, exports, controller_6, controller_7, controller_8, controller_9) {
+    "use strict";
+    exports.PartyBBS = controller_6.PartyBBSController;
+    exports.Diary = controller_7.DiaryController;
+    exports.Serif = controller_8.SerifController;
+    exports.Message = controller_9.MessageController;
+});
+define("lib/ss/preview/preview", ["require", "exports", "lib/ss/preview/controllers", "lib/ss/preview/config", "lib/preview/view"], function (require, exports, Controllers, Config, view_6) {
+    "use strict";
+    exports.Controllers = Controllers;
+    exports.Config = Config;
+    exports.InsertionMode = view_6.InsertionMode;
 });
 define("lib/ss/pages/characterSettings", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -981,16 +1313,14 @@ define("lib/ss/pages/characterSettings", ["require", "exports"], function (requi
         }
         CharacterSettings.ExtractIconUrlArray = function () {
             var defaultIconURL = "/p/default.jpg";
-            var firstIcon = document.getElementById("TextBox7");
-            if (firstIcon === null) {
-                return [];
-            }
-            var a = [firstIcon.value || defaultIconURL];
-            for (var i = 0;; i++) {
-                var icon = document.getElementById("TextBox" + (i + 12));
-                if (icon === null) {
+            var a = [];
+            for (var i = 4;; i += 3) {
+                var strNum = i < 10 ? ("0" + i) : ("" + i);
+                var nodes = document.getElementsByName("ctl" + strNum);
+                if (nodes.length === 0) {
                     return a;
                 }
+                var icon = (nodes[0]);
                 a.push(icon.value || defaultIconURL);
             }
         };
@@ -1007,26 +1337,23 @@ define("lib/ss/pages/characterSettings", ["require", "exports"], function (requi
 });
 define("lib/ss/pages", ["require", "exports", "lib/ss/pages/characterSettings"], function (require, exports, characterSettings_1) {
     "use strict";
-    function __export(m) {
-        for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
-    }
-    __export(characterSettings_1);
+    exports.CharacterSettings = characterSettings_1.CharacterSettings;
 });
-define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/pageConfig", "lib/ss/page", "lib/preview", "lib/ss/preview", "lib/ss/pages"], function (require, exports, profile_1, pageConfig_1, page_1, Preview, SSPreview, Pages) {
+define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "lib/ss/page", "lib/ss/preview/preview", "lib/ss/pages"], function (require, exports, $, profile_1, page_1, Preview, Pages) {
     "use strict";
     var SSPreviewer;
     (function (SSPreviewer) {
         // const $: JQueryStatic = jQuery;
         function Init() {
-            SSPreview.SSPreview.DELAY_MS = 100;
+            Preview.Config.previewDelay_ms = 100;
+            Preview.Config.randomizesDiceTagResult = true;
             $("head").append("<style type='text/css'>\n    .clearfix:after {\n        content: \"\";\n        display: block;\n        clear: both;\n    }\n    .separator_or {\n        background-color: rgba(255,255,255,0.25);\n        border-radius: 2px;\n        margin: 4px 0px;\n        text-align: center;\n        vertical-align: middle;\n    }\n    .separator_or:before {\n        content: \"- OR -\";\n    }\n</style>");
             function InitAllTextboxesWithSerifPreview(profile) {
                 return $("textarea").toArray().map(function (e, i) {
-                    return new SSPreview.SerifPreview({
-                        insTarget: e,
-                        insMode: Preview.InsertionMode.InsertAfter,
+                    return new Preview.Controllers.Serif({
+                        profile: profile,
+                        insertion: { target: e, mode: Preview.InsertionMode.InsertAfter },
                         textbox: e,
-                        profile: profile
                     });
                 });
             }
@@ -1034,11 +1361,10 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
             function InitAllTextboxesWithMessagePreview(profile) {
                 return $("textarea").toArray().map(function (e, i) {
                     var imageURLBox = $(e).nextUntil("input").last().next()[0];
-                    return new SSPreview.MessagePreview({
-                        insTarget: imageURLBox,
-                        insMode: Preview.InsertionMode.InsertAfter,
+                    return new Preview.Controllers.Message({
+                        profile: profile,
+                        insertion: { target: e, mode: Preview.InsertionMode.InsertAfter },
                         textbox: e,
-                        profile: profile
                     });
                 });
             }
@@ -1055,8 +1381,8 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
                     p_2.Hide();
                 }
             }
-            function ToggleAllPreviewsButton(previews) {
-                $("head").append("<style type='text/css'>\n    OnActive, .active .hideOnActive {\n        display: none;\n    }\n</style>");
+            function InsertToggleAllButton(previews) {
+                $("head").append("<style type='text/css'>\n        .showOnActive, .active .hideOnActive {\n            display: none;\n        }\n        .active .showOnActive, .hideOnActive {\n            display: inherit;\n        }\n    </style>");
                 var $b = $("<a id='showAllPreviews' class='clearFix' href='#' style='display: block; float: right;'><button type='button' onclick='return false;'>全てのプレビューを<span class='hideOnActive'>表示</span><span class='showOnActive'>隠す</span></button></a>").on("click", function () {
                     $b.toggleClass("active");
                     if ($b.hasClass("active")) {
@@ -1068,7 +1394,7 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
                 });
                 $("td.BackMessage2").eq(0).prepend($b);
             }
-            var p = pageConfig_1.PageConfig;
+            var p = page_1.PageConfig;
             var profile = new profile_1.Profile();
             p.Common = new page_1.Page(profile, function (profile) {
                 $("#char_Button").before("<center class='F1'>↓(Previewer) アイコン・愛称の自動読込↓</center>");
@@ -1076,57 +1402,59 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
             p.MainPage = new page_1.Page(profile, function (profile) {
                 $("head").append("<style type='text/css'>\n    .char_count_line {\n        text-align: left;\n    }\n    .char_count_cnt {\n        font-size: 12px;\n    }\n    .lf_count_cnt {\n        font-size: 10px;\n    }\n    .char_count_line .char_count_over, .char_count_line .lf_count_over {\n        color: #CC3333;\n        font-weight: bold;\n    }\n    .char_count_line .char_count_over {\n        font-size: 16px;\n    }\n    .char_count_line .lf_count_over {\n        font-size: 14px;\n    }\n</style>");
                 var diaryBox = $("#Diary_TextBox")[0];
-                var diaryPreview = new SSPreview.DiaryPreview({
-                    insTarget: diaryBox,
-                    insMode: Preview.InsertionMode.InsertAfter,
-                    textbox: diaryBox,
+                var diaryPreview = new Preview.Controllers.Diary({
                     profile: profile,
-                    countsChars: true
+                    insertion: { target: diaryBox, mode: Preview.InsertionMode.InsertAfter },
+                    textbox: diaryBox,
                 });
                 var serifWhenUsingItem = $("#TextBox12")[0];
-                var serifPreview_WhenUsingItem = new SSPreview.SerifPreview({
-                    insTarget: serifWhenUsingItem,
-                    insMode: Preview.InsertionMode.InsertAfter,
+                var serifPreview_WhenUsingItem = new Preview.Controllers.Serif({
+                    profile: profile,
+                    insertion: { target: serifWhenUsingItem, mode: Preview.InsertionMode.InsertAfter },
                     textbox: serifWhenUsingItem,
-                    profile: profile
                 });
-                ToggleAllPreviewsButton([diaryPreview, serifPreview_WhenUsingItem]);
+                var serifWhenDumpingItem = $("#TextBox19")[0];
+                var serifPreview_WhenDumpingItem = new Preview.Controllers.Serif({
+                    profile: profile,
+                    insertion: { target: serifWhenDumpingItem, mode: Preview.InsertionMode.InsertAfter },
+                    textbox: serifWhenDumpingItem,
+                });
+                InsertToggleAllButton([diaryPreview, serifPreview_WhenUsingItem, serifPreview_WhenDumpingItem]);
             });
             p.PartyBBS = new page_1.Page(profile, function (profile) {
                 var $commentBox = $("#commentTxt");
-                var preview = new SSPreview.PartyBBSPreview({
-                    insTarget: $commentBox.closest("div.BackBoard")[0],
-                    insMode: Preview.InsertionMode.InsertAfter,
-                    textbox: $commentBox[0],
+                var preview = new Preview.Controllers.PartyBBS({
                     profile: profile,
-                    nameBox: $("#nameTxt")[0],
-                    titleBox: $("#titleTxt")[0]
+                    insertion: { target: $commentBox.closest("div.BackBoard")[0], mode: Preview.InsertionMode.InsertAfter },
+                    textbox: $commentBox[0],
+                    nameInput: $("#nameTxt")[0],
+                    titleInput: $("#titleTxt")[0]
                 });
-                ToggleAllPreviewsButton([preview]);
+                InsertToggleAllButton([preview]);
             });
             p.Trade = new page_1.Page(profile, function (profile) {
                 var previews = InitAllTextboxesWithSerifPreview(profile);
-                ToggleAllPreviewsButton(previews);
+                InsertToggleAllButton(previews);
             });
             p.Reinforcement = new page_1.Page(profile, function (profile) {
                 var previews = InitAllTextboxesWithSerifPreview(profile);
-                ToggleAllPreviewsButton(previews);
+                InsertToggleAllButton(previews);
             });
             p.BattleSettings = new page_1.Page(profile, function (profile) {
                 var previews = InitAllTextboxesWithSerifPreview(profile);
-                ToggleAllPreviewsButton(previews);
+                InsertToggleAllButton(previews);
             });
             p.BattleWords = new page_1.Page(profile, function (profile) {
                 var previews = InitAllTextboxesWithSerifPreview(profile);
-                ToggleAllPreviewsButton(previews);
+                InsertToggleAllButton(previews);
             });
             p.Message = new page_1.Page(profile, function (profile) {
                 var previews = InitAllTextboxesWithMessagePreview(profile);
-                ToggleAllPreviewsButton(previews);
+                InsertToggleAllButton(previews);
             });
             p.GroupMessage = new page_1.Page(profile, function (profile) {
                 var previews = InitAllTextboxesWithMessagePreview(profile);
-                ToggleAllPreviewsButton(previews);
+                InsertToggleAllButton(previews);
             });
             p.CharacterSettings = new page_1.Page(profile, function (profile) {
                 profile.SaveIconURLArray(Pages.CharacterSettings.ExtractIconUrlArray());
@@ -1134,13 +1462,13 @@ define("SSPreviewer.user", ["require", "exports", "lib/ss/profile", "lib/ss/page
             });
             p.Community = new page_1.Page(profile, function (profile) {
                 var communityCaptionBox = $("textarea")[0];
-                var preview = new SSPreview.DiaryPreview({
-                    insTarget: communityCaptionBox,
-                    insMode: Preview.InsertionMode.InsertAfter,
+                var preview = new Preview.Controllers.Diary({
+                    profile: profile,
+                    insertion: { target: communityCaptionBox, mode: Preview.InsertionMode.InsertAfter },
                     textbox: communityCaptionBox,
-                    profile: profile
+                    showsCharCounts: false
                 });
-                ToggleAllPreviewsButton([preview]);
+                InsertToggleAllButton([preview]);
             });
             p.RunInitializer(profile, document.location);
         }
