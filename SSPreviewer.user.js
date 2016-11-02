@@ -6,7 +6,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.020
+// @version     0.1.021
 // @grant       none
 // ==/UserScript==
 //
@@ -378,6 +378,7 @@ define("lib/ss/preview/config", ["require", "exports"], function (require, expor
     exports.randomizesDiceTagResult = false;
     exports.previewDelay_ms = 0;
     exports.diary_showsCharCounts = true;
+    exports.neverUpdateHiddenPreview = true;
 });
 define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string/format", "lib/util/string/replaceLoop", "lib/util/html/escape", "lib/util/html/tag", "lib/ss/expr/parser", "lib/ss/preview/config"], function (require, exports, format, replaceLoop, htmlEscape, tag_1, parser_1, Config) {
     "use strict";
@@ -537,6 +538,9 @@ define("lib/preview/model", ["require", "exports", "lib/preview/model_formatter"
             enumerable: true,
             configurable: true
         });
+        PreviewModel.prototype.InitOnPreviewing = function () {
+            return this.SetAsShown();
+        };
         PreviewModel.prototype.Update = function (source, extraArg) {
             if (this.isDisabled) {
                 return false;
@@ -682,14 +686,14 @@ define("lib/preview/view", ["require", "exports", "jquery"], function (require, 
             }
             return this;
         };
-        PreviewView.prototype.Hide = function () {
+        PreviewView.prototype.Hide = function (model) {
             if (!this.$container) {
                 return;
             }
             this.$container.css("display", "none");
             return this;
         };
-        PreviewView.prototype.Show = function () {
+        PreviewView.prototype.Show = function (model) {
             if (!this.$container) {
                 return;
             }
@@ -701,10 +705,10 @@ define("lib/preview/view", ["require", "exports", "jquery"], function (require, 
                 this.InsertContainer();
             }
             if (model.IsVisible) {
-                this.Show();
+                this.Show(model);
             }
             else {
-                this.Hide();
+                this.Hide(model);
             }
             if (model.IsDisabled) {
                 return false;
@@ -1025,8 +1029,7 @@ define("lib/preview/controller", ["require", "exports", "lib/util/jquery/customE
                 this.timerEvt.Dispose();
             }
             this.timerEvt = new TimerEvent(function () {
-                // この位置で毎回modelの可視状態を初期化。
-                _this.model.SetAsShown();
+                _this.model.InitOnPreviewing();
                 _this.Update();
             }, this.delay_ms);
             this.timerEvt.resetTimeWhenStarting = true;
@@ -1082,6 +1085,10 @@ define("lib/ss/preview/controller", ["require", "exports", "lib/preview/controll
             var source = this.textbox.value;
             if (source === "") {
                 this.model.SetAsHidden();
+            }
+            if (!this.model.IsVisible && Config.neverUpdateHiddenPreview) {
+                this.view.Hide(this.model);
+                return this;
             }
             this.model.Update(source, extraArg);
             this.view.Update(this.model);
@@ -1312,7 +1319,6 @@ define("lib/ss/pages/characterSettings", ["require", "exports"], function (requi
         function CharacterSettings() {
         }
         CharacterSettings.ExtractIconUrlArray = function () {
-            var defaultIconURL = "/p/default.jpg";
             var a = [];
             for (var i = 4;; i += 3) {
                 var strNum = i < 10 ? ("0" + i) : ("" + i);
@@ -1321,7 +1327,7 @@ define("lib/ss/pages/characterSettings", ["require", "exports"], function (requi
                     return a;
                 }
                 var icon = (nodes[0]);
-                a.push(icon.value || defaultIconURL);
+                a.push(icon.value);
             }
         };
         CharacterSettings.ExtractNickname = function () {
@@ -1419,7 +1425,18 @@ define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "l
                     insertion: { target: serifWhenDumpingItem, mode: Preview.InsertionMode.InsertAfter },
                     textbox: serifWhenDumpingItem,
                 });
-                InsertToggleAllButton([diaryPreview, serifPreview_WhenUsingItem, serifPreview_WhenDumpingItem]);
+                var shout = $("#TextBox17")[0];
+                var serifPreview_shout = new Preview.Controllers.Serif({
+                    profile: profile,
+                    insertion: { target: shout, mode: Preview.InsertionMode.InsertAfter },
+                    textbox: shout,
+                });
+                InsertToggleAllButton([
+                    diaryPreview,
+                    serifPreview_WhenUsingItem,
+                    serifPreview_WhenDumpingItem,
+                    serifPreview_shout
+                ]);
             });
             p.PartyBBS = new page_1.Page(profile, function (profile) {
                 var $commentBox = $("#commentTxt");
