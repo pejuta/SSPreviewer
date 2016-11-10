@@ -6,7 +6,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.021
+// @version     0.1.022
 // @grant       none
 // ==/UserScript==
 //
@@ -127,8 +127,12 @@ define("lib/ss/page", ["require", "exports"], function (require, exports) {
                     "/d/strgsaction.aspx": PageConfig.Reinforcement,
                     "/d/battle.aspx": PageConfig.BattleSettings,
                     "/d/battlemessage.aspx": PageConfig.BattleWords,
+                    "/d/battlemessageprc.aspx": PageConfig.BattleWords,
+                    "/d/bms.aspx": PageConfig.BattleWords,
                     "/d/messageaction.aspx": PageConfig.Message,
                     "/d/commesaction.aspx": PageConfig.GroupMessage,
+                    "/d/messagelog.aspx": PageConfig.MessageLog,
+                    "/d/commeslog.aspx": PageConfig.MessageLog,
                     "/d/chara.aspx": PageConfig.CharacterSettings,
                     "/d/com.aspx": PageConfig.Community,
                 };
@@ -137,8 +141,8 @@ define("lib/ss/page", ["require", "exports"], function (require, exports) {
             configurable: true
         });
         PageConfig.RunInitializer = function (profile, location) {
-            if (this.Common) {
-                this.Common.Init(profile);
+            if (this.ForAllPages) {
+                this.ForAllPages.Init(profile);
             }
             var path = location.pathname;
             if (PageConfig.pathnameToPage.hasOwnProperty(path) && PageConfig.pathnameToPage[path]) {
@@ -373,12 +377,35 @@ define("lib/preview/model_formatter", ["require", "exports"], function (require,
     }());
     exports.Formatter = Formatter;
 });
-define("lib/ss/preview/config", ["require", "exports"], function (require, exports) {
+define("lib/ss/preview/templates", ["require", "exports"], function (require, exports) {
     "use strict";
-    exports.randomizesDiceTagResult = false;
+    // 注意: 変更したい場合はコントローラー(から呼ばれるformatter)のコンストラクタが呼ばれる前に設定すること。
+    var Preview;
+    (function (Preview) {
+        Preview.Diary = null;
+        Preview.DiaryCharCountsHTML = null;
+        Preview.Message = null;
+        Preview.PartyBBS = null;
+        Preview.Serif = null;
+    })(Preview = exports.Preview || (exports.Preview = {}));
+});
+define("lib/preview/config", ["require", "exports"], function (require, exports) {
+    "use strict";
+    exports.neverUpdateHTMLIfHidden = true;
     exports.previewDelay_ms = 0;
-    exports.diary_showsCharCounts = true;
-    exports.neverUpdateHiddenPreview = true;
+});
+define("lib/ss/preview/config", ["require", "exports", "lib/ss/preview/templates", "lib/preview/config"], function (require, exports, Templates, Preview) {
+    "use strict";
+    exports.Templates = Templates;
+    exports.Preview = Preview;
+    var SSPreview;
+    (function (SSPreview) {
+        SSPreview.imgBaseURL = null;
+        SSPreview.diary_showsCharCounts = true;
+        SSPreview.randomizesDiceTagResult = false;
+        // format arg: { imgDir, resultNum }
+        SSPreview.diceTagTemplateHTML = null;
+    })(SSPreview = exports.SSPreview || (exports.SSPreview = {}));
 });
 define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string/format", "lib/util/string/replaceLoop", "lib/util/html/escape", "lib/util/html/tag", "lib/ss/expr/parser", "lib/ss/preview/config"], function (require, exports, format, replaceLoop, htmlEscape, tag_1, parser_1, Config) {
     "use strict";
@@ -435,7 +462,7 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
             if (randomize) {
                 resultNum = Math.floor(Math.random() * 6) + 1;
             }
-            return format(Formatter._DEFAULT_DICE_TEMPLATE, { imgDir: Formatter._DEFAULT_IMG_DIR, resultNum: resultNum });
+            return format(Config.SSPreview.diceTagTemplateHTML || Formatter._DEFAULT_DICE_TEMPLATE, { imgDir: Config.SSPreview.imgBaseURL || Formatter._DEFAULT_IMG_BASE_URL, resultNum: resultNum });
         };
         Formatter.prototype.Exec = function (source) {
             // 1: escape
@@ -446,7 +473,7 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
             html = this.Format(parser_1.Parser.Parse(html, this.at3ModeAsDefault, this.allowsOrTag));
             // 4: dice
             html = html.replace(Formatter.reReplace_EscapedDiceTag, function (match) {
-                return Formatter.GenerateDiceTag(Config.randomizesDiceTagResult);
+                return Formatter.GenerateDiceTag(Config.SSPreview.randomizesDiceTagResult);
             });
             // 5: BR
             html = tag_1.lineBreaksToBR(html);
@@ -471,7 +498,7 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
                     }
                     var iconURL = "";
                     if (exp.IconNumber !== -1) {
-                        iconURL = _this.profile.iconURLArray[exp.IconNumber] || (Formatter._DEFAULT_IMG_DIR + "default.jpg");
+                        iconURL = _this.profile.iconURLArray[exp.IconNumber] || ((Config.SSPreview.imgBaseURL || Formatter._DEFAULT_IMG_BASE_URL) + "default.jpg");
                     }
                     var name = exp.ChangedName === null ? _this.profile.nickname : exp.ChangedName;
                     var bodyHTML = exp.Text;
@@ -509,7 +536,7 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
         };
         // { imgDir, resultNum }
         Formatter._DEFAULT_DICE_TEMPLATE = "<img alt=\"dice\" src=\"{imgDir}d{resultNum}.png\" border=\"0\" height=\"20\" width=\"20\">";
-        Formatter._DEFAULT_IMG_DIR = "http://www.sssloxia.jp/p/";
+        Formatter._DEFAULT_IMG_BASE_URL = "http://www.sssloxia.jp/p/";
         Formatter._DETAULT_SEPARATORS = { and: "", or: "<div class='separator_or'/>" };
         Formatter.reReplace_EscapedDecoTag = new RegExp(htmlEscape.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "g");
         Formatter.reReplace_EscapedDiceTag = new RegExp(htmlEscape.escape("<D>"), "g");
@@ -519,349 +546,6 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
 });
 define("lib/interface/disposable", ["require", "exports"], function (require, exports) {
     "use strict";
-});
-define("lib/preview/model", ["require", "exports", "lib/preview/model_formatter"], function (require, exports, model_formatter_1) {
-    "use strict";
-    var PreviewModel = (function () {
-        function PreviewModel(formatter) {
-            if (formatter === void 0) { formatter = new model_formatter_1.Formatter(); }
-            this.formatter = formatter;
-            this.source = null;
-            this.previewHTML = null;
-            this.isVisible = false;
-            this.isDisabled = false;
-        }
-        Object.defineProperty(PreviewModel.prototype, "PreviewHTML", {
-            get: function () {
-                return this.previewHTML;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        PreviewModel.prototype.InitOnPreviewing = function () {
-            return this.SetAsShown();
-        };
-        PreviewModel.prototype.Update = function (source, extraArg) {
-            if (this.isDisabled) {
-                return false;
-            }
-            // if (!this.isVisible) {
-            //     return true;
-            // }
-            if (source === this.source) {
-                return false;
-            }
-            this.source = source;
-            this.previewHTML = this.formatter.Exec(source, extraArg);
-            return true;
-        };
-        Object.defineProperty(PreviewModel.prototype, "IsVisible", {
-            get: function () {
-                return this.isVisible;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        PreviewModel.prototype.SetAsHidden = function () {
-            this.isVisible = false;
-            return this;
-        };
-        PreviewModel.prototype.SetAsShown = function () {
-            this.isVisible = true;
-            return this;
-        };
-        Object.defineProperty(PreviewModel.prototype, "IsDisabled", {
-            get: function () {
-                return this.isDisabled;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        PreviewModel.prototype.SetAsDisabled = function () {
-            this.isDisabled = true;
-            return this;
-        };
-        PreviewModel.prototype.SetAsEnabled = function () {
-            this.isDisabled = false;
-            return this;
-        };
-        PreviewModel.prototype.Dispose = function () {
-            this.previewHTML = null;
-            this.isDisabled = true;
-            this.isVisible = false;
-        };
-        return PreviewModel;
-    }());
-    exports.PreviewModel = PreviewModel;
-});
-define("lib/ss/preview/partyBBS/model_formatter", ["require", "exports", "lib/util/string/format", "lib/ss/preview/model_formatter"], function (require, exports, format, model_formatter_2) {
-    "use strict";
-    var PartyBBSFormatter = (function (_super) {
-        __extends(PartyBBSFormatter, _super);
-        function PartyBBSFormatter(args) {
-            _super.call(this, args);
-        }
-        PartyBBSFormatter.prototype.Exec = function (source, extraArg) {
-            if (extraArg === void 0) { extraArg = { title: "", name: "" }; }
-            var html = _super.prototype.Exec.call(this, source);
-            if (extraArg.title === "") {
-                extraArg = Object.create(extraArg);
-                extraArg.title = "無題";
-            }
-            var template = format(PartyBBSFormatter.TEMPLATE_CONTAINER, extraArg);
-            return format(template, { html: html });
-        };
-        PartyBBSFormatter.TEMPLATE_CONTAINER = "<div class=\"BackBoard\">\n    <b>xxx \uFF1A{title}</b> &nbsp;&nbsp;{name}&#12288;\uFF0820xx/xx/xx xx:xx:xx\uFF09 <br> <br>{html}<br><br><br clear=\"ALL\">\n</div>";
-        return PartyBBSFormatter;
-    }(model_formatter_2.Formatter));
-    exports.PartyBBSFormatter = PartyBBSFormatter;
-});
-define("lib/ss/preview/partyBBS/model", ["require", "exports", "lib/preview/model", "lib/ss/preview/partyBBS/model_formatter"], function (require, exports, model_1, model_formatter_3) {
-    "use strict";
-    var PartyBBSModel = (function (_super) {
-        __extends(PartyBBSModel, _super);
-        function PartyBBSModel(profile) {
-            _super.call(this, new model_formatter_3.PartyBBSFormatter({
-                profile: profile,
-                template: PartyBBSModel.TEMPLATE,
-                at3ModeAsDefault: true
-            }));
-        }
-        PartyBBSModel.prototype.Update = function (source, extraArg) {
-            if (extraArg === void 0) { extraArg = { title: "", name: "" }; }
-            if (this.isDisabled) {
-                return false;
-            }
-            if (source === this.source && extraArg.title === this.title && extraArg.name === this.name) {
-                return false;
-            }
-            this.source = source;
-            this.title = extraArg.title;
-            this.name = extraArg.name;
-            this.previewHTML = this.formatter.Exec(source, extraArg);
-            return true;
-        };
-        PartyBBSModel.TEMPLATE = null;
-        return PartyBBSModel;
-    }(model_1.PreviewModel));
-    exports.PartyBBSModel = PartyBBSModel;
-});
-define("lib/preview/view", ["require", "exports", "jquery"], function (require, exports, $) {
-    "use strict";
-    (function (InsertionMode) {
-        InsertionMode[InsertionMode["InsertAfter"] = 0] = "InsertAfter";
-        InsertionMode[InsertionMode["InsertBefore"] = 1] = "InsertBefore";
-        InsertionMode[InsertionMode["AppendTo"] = 2] = "AppendTo";
-        InsertionMode[InsertionMode["PrependTo"] = 3] = "PrependTo";
-    })(exports.InsertionMode || (exports.InsertionMode = {}));
-    var InsertionMode = exports.InsertionMode;
-    var PreviewView = (function () {
-        function PreviewView(insertion) {
-            this.insertion = insertion;
-        }
-        Object.defineProperty(PreviewView.prototype, "PreviewContainer", {
-            get: function () {
-                return this.$container ? this.$container[0] : null;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        PreviewView.prototype.InsertContainer = function () {
-            this.$container = $(PreviewView.containerHTML);
-            switch (this.insertion.mode) {
-                case InsertionMode.InsertAfter:
-                    this.$container.insertAfter(this.insertion.target);
-                    break;
-                case InsertionMode.InsertBefore:
-                    this.$container.insertBefore(this.insertion.target);
-                    break;
-                case InsertionMode.AppendTo:
-                    this.$container.appendTo(this.insertion.target);
-                    break;
-                case InsertionMode.PrependTo:
-                    this.$container.prependTo(this.insertion.target);
-                    break;
-                default:
-                    throw new Error("InsertionMode指定エラー");
-            }
-            return this;
-        };
-        PreviewView.prototype.Hide = function (model) {
-            if (!this.$container) {
-                return;
-            }
-            this.$container.css("display", "none");
-            return this;
-        };
-        PreviewView.prototype.Show = function (model) {
-            if (!this.$container) {
-                return;
-            }
-            this.$container.css("display", "");
-            return this;
-        };
-        PreviewView.prototype.Update = function (model) {
-            if (!this.$container) {
-                this.InsertContainer();
-            }
-            if (model.IsVisible) {
-                this.Show(model);
-            }
-            else {
-                this.Hide(model);
-            }
-            if (model.IsDisabled) {
-                return false;
-            }
-            this.$container.html(model.PreviewHTML);
-            return true;
-        };
-        PreviewView.prototype.Dispose = function () {
-            this.$container.remove();
-        };
-        PreviewView.containerHTML = "<div class=\"preview\"/>";
-        return PreviewView;
-    }());
-    exports.PreviewView = PreviewView;
-});
-define("lib/util/array/set", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var FakeSet = (function () {
-        function FakeSet(equalityValidator, array) {
-            if (equalityValidator === void 0) { equalityValidator = function (v1, v2) { return (v1 === v2); }; }
-            this.equalityValidator = equalityValidator;
-            if (array && array instanceof Array) {
-                this.innerArray = array.concat();
-            }
-            else {
-                this.innerArray = [];
-            }
-        }
-        FakeSet.prototype.has = function (e) {
-            return this.indexOf(e) !== -1;
-        };
-        FakeSet.prototype.indexOf = function (e) {
-            var _this = this;
-            var index;
-            var hasFound = this.innerArray.some(function (v, i, a) {
-                index = i;
-                return _this.equalityValidator(v, e);
-            });
-            if (hasFound) {
-                return index;
-            }
-            else {
-                return -1;
-            }
-        };
-        FakeSet.prototype.add = function (e) {
-            if (this.has(e)) {
-                return this;
-            }
-            this.innerArray.push(e);
-            return this;
-        };
-        // 名称がdeleteだとYUIに弾かれるが故に再現できない。
-        FakeSet.prototype.del = function (e) {
-            var index = this.indexOf(e);
-            if (index === -1) {
-                return false;
-            }
-            this.innerArray.splice(index, 1);
-            return true;
-        };
-        FakeSet.prototype.clear = function () {
-            this.innerArray = [];
-        };
-        FakeSet.prototype.forEach = function (callback) {
-            for (var _i = 0, _a = this.innerArray; _i < _a.length; _i++) {
-                var i = _a[_i];
-                callback(i, i, this);
-            }
-        };
-        Object.defineProperty(FakeSet.prototype, "size", {
-            get: function () {
-                return this.innerArray.length;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        return FakeSet;
-    }());
-    return FakeSet;
-});
-define("lib/util/jquery/customEvent", ["require", "exports", "lib/util/array/set", "jquery"], function (require, exports, FakeSet, $) {
-    "use strict";
-    function ValidateEventsEquality(v1, v2) {
-        return v1.target.is(v2) && v1.eventType === v2.eventType;
-    }
-    var Event = (function () {
-        function Event(name, callback) {
-            var _this = this;
-            this.name = name;
-            this.callback = callback;
-            this._wrappedCallback = function (e) {
-                if (_this.callback) {
-                    _this.callback(e);
-                }
-                $(_this).triggerHandler(_this.name);
-            };
-            this.evts = new FakeSet(ValidateEventsEquality);
-            // code...
-        }
-        Object.defineProperty(Event.prototype, "Name", {
-            get: function () {
-                return this.name;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Event.prototype.RegisterTrigger = function (evt) {
-            if (this.evts.has(evt)) {
-                return false;
-            }
-            $(evt.target).on(evt.eventType, this._wrappedCallback);
-            this.evts.add(evt);
-            return true;
-        };
-        Event.prototype.RegisterTriggers = function (evts) {
-            for (var _i = 0, evts_1 = evts; _i < evts_1.length; _i++) {
-                var evt = evts_1[_i];
-                this.RegisterTrigger(evt);
-            }
-            return this;
-        };
-        Event.prototype.UnregisterTrigger = function (evt) {
-            if (!this.evts.has(evt)) {
-                return false;
-            }
-            $(evt.target).off(evt.eventType, this._wrappedCallback);
-            return this.evts.del(evt);
-        };
-        Event.prototype.UnregisterTriggers = function (evts) {
-            if (!evts) {
-                this.UnregisterAllTriggers();
-            }
-            for (var _i = 0, evts_2 = evts; _i < evts_2.length; _i++) {
-                var evt = evts_2[_i];
-                this.UnregisterTrigger(evt);
-            }
-            return this;
-        };
-        Event.prototype.UnregisterAllTriggers = function () {
-            var _this = this;
-            this.evts.forEach(function (evt) {
-                $(evt.target).off(evt.eventType, _this._wrappedCallback);
-            });
-            this.evts.clear();
-            return this;
-        };
-        Event.prototype.Dispose = function () {
-            this.UnregisterAllTriggers();
-        };
-        return Event;
-    }());
-    exports.Event = Event;
 });
 define("lib/util/timer/timer", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -986,33 +670,30 @@ define("lib/util/timer/timerEvent", ["require", "exports", "lib/util/timer/timer
     }(Timer));
     return TimerEvent;
 });
-define("lib/preview/controller", ["require", "exports", "lib/util/jquery/customEvent", "lib/util/timer/timerEvent"], function (require, exports, customEvent_1, TimerEvent) {
+define("lib/preview/model", ["require", "exports", "jquery", "lib/preview/model_formatter", "lib/util/timer/timerEvent", "lib/preview/config"], function (require, exports, $, model_formatter_1, TimerEvent, Config) {
     "use strict";
-    var PreviewController = (function () {
-        function PreviewController(arg) {
-            var _this = this;
-            this.onUpdating = new customEvent_1.Event("onUpdatingPreview", function (eventObject) {
-                _this.callback_onUpdating(eventObject);
-            });
-            this.callback_onUpdating = function (eventObject) {
-                if (_this.model.IsDisabled) {
-                    return false;
-                }
-                _this.timerEvt.Start();
-                return true;
-            };
-            this.model = arg.model;
-            this.view = arg.view;
-            this.Delay_ms = arg.delay_ms === undefined ? PreviewController._DEFAULT_DELAY_MS : arg.delay_ms;
+    var PreviewModel = (function () {
+        function PreviewModel(formatter, delay_ms) {
+            if (formatter === void 0) { formatter = new model_formatter_1.Formatter(); }
+            if (delay_ms === void 0) { delay_ms = Config.previewDelay_ms; }
+            this.formatter = formatter;
+            this.delay_ms = delay_ms;
+            this.previewHTML = null;
+            this.source = null;
+            this.extraArg = null;
+            this.isVisible = false;
+            this.isDisabled = false;
+            this.$onUpdated = $.Callbacks("stopOnFalse");
+            this.InitTimerEvent();
         }
-        Object.defineProperty(PreviewController.prototype, "OnUpdating", {
+        Object.defineProperty(PreviewModel.prototype, "PreviewHTML", {
             get: function () {
-                return this.onUpdating;
+                return this.previewHTML;
             },
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(PreviewController.prototype, "Delay_ms", {
+        Object.defineProperty(PreviewModel.prototype, "Delay_ms", {
             get: function () {
                 return this.delay_ms;
             },
@@ -1023,107 +704,190 @@ define("lib/preview/controller", ["require", "exports", "lib/util/jquery/customE
             enumerable: true,
             configurable: true
         });
-        PreviewController.prototype.InitTimerEvent = function () {
+        Object.defineProperty(PreviewModel.prototype, "IsVisible", {
+            get: function () {
+                return this.isVisible;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PreviewModel.prototype, "IsDisabled", {
+            get: function () {
+                return this.isDisabled;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        PreviewModel.prototype.ReserveUpdate = function (arg) {
+            if (this.isDisabled) {
+                return false;
+            }
+            if (arg.source === this.source && JSON.stringify(arg.extraArg) === JSON.stringify(this.extraArg)) {
+                return false;
+            }
+            this.timerEvt.Start(arg);
+            return true;
+        };
+        PreviewModel.prototype.InitTimerEvent = function () {
             var _this = this;
             if (this.timerEvt) {
                 this.timerEvt.Dispose();
             }
-            this.timerEvt = new TimerEvent(function () {
-                _this.model.InitOnPreviewing();
-                _this.Update();
-            }, this.delay_ms);
+            this.timerEvt = new TimerEvent(function (arg) { _this.Update(arg); }, this.delay_ms);
             this.timerEvt.resetTimeWhenStarting = true;
             return this;
         };
-        // manual
-        PreviewController.prototype.Show = function () {
-            this.model.SetAsShown();
-            return this.Update();
-        };
-        // manual
-        PreviewController.prototype.Hide = function () {
-            this.model.SetAsHidden();
-            return this.Update();
-        };
-        // manual
-        PreviewController.prototype.Enable = function () {
-            this.model.SetAsEnabled();
-            return this.Update();
-        };
-        // manual
-        PreviewController.prototype.Disable = function () {
-            this.model.SetAsDisabled().SetAsHidden();
-            return this.Update();
-        };
-        // manual
-        PreviewController.prototype.Pause = function () {
-            this.model.SetAsDisabled();
-            return this.Update();
-        };
-        PreviewController.prototype.Dispose = function () {
-            this.model.Dispose();
-            this.view.Dispose();
-            this.timerEvt.Dispose();
-            this.onUpdating.Dispose();
-        };
-        PreviewController._DEFAULT_DELAY_MS = 0;
-        return PreviewController;
-    }());
-    exports.PreviewController = PreviewController;
-});
-define("lib/ss/preview/controller", ["require", "exports", "lib/preview/controller", "lib/ss/preview/config"], function (require, exports, controller_1, Config) {
-    "use strict";
-    var SSPreviewController = (function (_super) {
-        __extends(SSPreviewController, _super);
-        function SSPreviewController(arg) {
-            var delay_ms = (arg.delay_ms === undefined) ? Config.previewDelay_ms : arg.delay_ms;
-            _super.call(this, arg);
-            this.textbox = arg.textbox;
-            this.OnUpdating.RegisterTrigger({ target: $(this.textbox), eventType: "keyup" });
-        }
-        SSPreviewController.prototype.Update = function (extraArg) {
-            var source = this.textbox.value;
-            if (source === "") {
-                this.model.SetAsHidden();
-            }
-            if (!this.model.IsVisible && Config.neverUpdateHiddenPreview) {
-                this.view.Hide(this.model);
-                return this;
-            }
-            this.model.Update(source, extraArg);
-            this.view.Update(this.model);
+        PreviewModel.prototype.Update = function (arg) {
+            this.InitOnUpdating().UpdateInfo(arg);
+            this.TriggerOnUpdatedEvent();
             return this;
         };
-        return SSPreviewController;
-    }(controller_1.PreviewController));
-    exports.SSPreviewController = SSPreviewController;
-});
-define("lib/ss/preview/partyBBS/controller", ["require", "exports", "lib/ss/preview/partyBBS/model", "lib/preview/view", "lib/ss/preview/controller"], function (require, exports, model_2, view_1, controller_2) {
-    "use strict";
-    var PartyBBSController = (function (_super) {
-        __extends(PartyBBSController, _super);
-        function PartyBBSController(arg) {
-            var model = new model_2.PartyBBSModel(arg.profile);
-            var view = new view_1.PreviewView(arg.insertion);
-            _super.call(this, { delay_ms: arg.delay_ms, model: model, view: view, textbox: arg.textbox });
-            this.titleInput = arg.titleInput;
-            this.nameInput = arg.nameInput;
-            this.OnUpdating.RegisterTriggers([
-                { target: $(this.titleInput), eventType: "keyup" },
-                { target: $(this.nameInput), eventType: "keyup" }
-            ]);
-        }
-        PartyBBSController.prototype.Update = function () {
-            var name = this.nameInput.value;
-            var title = this.titleInput.value;
-            if (name === "") {
-                this.model.SetAsHidden();
-            }
-            return _super.prototype.Update.call(this, { name: name, title: title });
+        PreviewModel.prototype.InitOnUpdating = function () {
+            this.SetAsShown();
+            return this;
         };
-        return PartyBBSController;
-    }(controller_2.SSPreviewController));
-    exports.PartyBBSController = PartyBBSController;
+        PreviewModel.prototype.UpdateInfo = function (arg) {
+            if (this.isDisabled) {
+                return false;
+            }
+            if (!this.isVisible && Config.neverUpdateHTMLIfHidden) {
+                return false;
+            }
+            this.source = arg.source;
+            this.extraArg = arg.extraArg;
+            this.previewHTML = this.formatter.Exec(arg.source, arg.extraArg);
+            return true;
+        };
+        PreviewModel.prototype.Show = function () {
+            this.SetAsShown();
+            if (!this.previewHTML) {
+                return this;
+            }
+            this.TriggerOnUpdatedEvent();
+            return this;
+        };
+        PreviewModel.prototype.Hide = function () {
+            this.SetAsHidden();
+            if (!this.previewHTML) {
+                return this;
+            }
+            this.TriggerOnUpdatedEvent();
+            return this;
+        };
+        PreviewModel.prototype.SetAsHidden = function () {
+            this.isVisible = false;
+            return this;
+        };
+        PreviewModel.prototype.SetAsShown = function () {
+            this.isVisible = true;
+            return this;
+        };
+        PreviewModel.prototype.SetAsDisabled = function () {
+            this.isDisabled = true;
+            return this;
+        };
+        PreviewModel.prototype.SetAsEnabled = function () {
+            this.isDisabled = false;
+            return this;
+        };
+        PreviewModel.prototype.TriggerOnUpdatedEvent = function () {
+            this.$onUpdated.fire(this);
+            return this;
+        };
+        PreviewModel.prototype.onUpdated = function (arg) {
+            if (arg instanceof Array) {
+                this.$onUpdated.add(arg);
+            }
+            else {
+                this.$onUpdated.add(arg);
+            }
+            return this;
+        };
+        PreviewModel.prototype.offUpdated = function (arg) {
+            if (arg instanceof Array) {
+                this.$onUpdated.remove(arg);
+            }
+            else {
+                this.$onUpdated.remove(arg);
+            }
+            return this;
+        };
+        PreviewModel.prototype.Dispose = function () {
+            this.timerEvt.Dispose();
+            this.$onUpdated.disable();
+            this.previewHTML = null;
+            this.isDisabled = true;
+            this.isVisible = false;
+        };
+        return PreviewModel;
+    }());
+    exports.PreviewModel = PreviewModel;
+});
+define("lib/ss/preview/model", ["require", "exports", "lib/preview/model"], function (require, exports, model_1) {
+    "use strict";
+    var SSPreviewModel = (function (_super) {
+        __extends(SSPreviewModel, _super);
+        function SSPreviewModel(formatter, delay_ms) {
+            _super.call(this, formatter, delay_ms);
+        }
+        SSPreviewModel.prototype.UpdateInfo = function (arg) {
+            if (arg.source === "") {
+                this.SetAsHidden();
+            }
+            return _super.prototype.UpdateInfo.call(this, arg);
+        };
+        return SSPreviewModel;
+    }(model_1.PreviewModel));
+    exports.SSPreviewModel = SSPreviewModel;
+});
+define("lib/ss/preview/partyBBS/model_formatter", ["require", "exports", "lib/util/string/format", "lib/ss/preview/model_formatter"], function (require, exports, format, model_formatter_2) {
+    "use strict";
+    var PartyBBSFormatter = (function (_super) {
+        __extends(PartyBBSFormatter, _super);
+        function PartyBBSFormatter(args) {
+            _super.call(this, args);
+        }
+        PartyBBSFormatter.prototype.Exec = function (source, extraArg) {
+            if (extraArg === void 0) { extraArg = { title: "", name: "" }; }
+            var html = _super.prototype.Exec.call(this, source);
+            if (extraArg.title === "") {
+                extraArg = Object.create(extraArg);
+                extraArg.title = "無題";
+            }
+            var template = format(PartyBBSFormatter.TEMPLATE_CONTAINER, extraArg);
+            return format(template, { html: html });
+        };
+        PartyBBSFormatter.TEMPLATE_CONTAINER = "<div class=\"BackBoard\">\n    <b>xxx \uFF1A{title}</b> &nbsp;&nbsp;{name}&#12288;\uFF0820xx/xx/xx xx:xx:xx\uFF09 <br> <br>{html}<br><br><br clear=\"ALL\">\n</div>";
+        return PartyBBSFormatter;
+    }(model_formatter_2.Formatter));
+    exports.PartyBBSFormatter = PartyBBSFormatter;
+});
+define("lib/ss/preview/partyBBS/model", ["require", "exports", "lib/ss/preview/model", "lib/ss/preview/partyBBS/model_formatter", "lib/ss/preview/templates"], function (require, exports, model_2, model_formatter_3, Templates) {
+    "use strict";
+    var PartyBBSModel = (function (_super) {
+        __extends(PartyBBSModel, _super);
+        function PartyBBSModel(profile, delay_ms) {
+            _super.call(this, new model_formatter_3.PartyBBSFormatter({
+                profile: profile,
+                template: Templates.Preview.PartyBBS,
+                at3ModeAsDefault: true
+            }), delay_ms);
+        }
+        PartyBBSModel.prototype.ReserveUpdate = function (arg) {
+            if (arg.source === this.source && arg.extraArg.title === this.extraArg.title && arg.extraArg.name === this.extraArg.name) {
+                return false;
+            }
+            return _super.prototype.ReserveUpdate.call(this, arg);
+        };
+        PartyBBSModel.prototype.UpdateInfo = function (arg) {
+            if (arg.extraArg.name === "") {
+                this.SetAsHidden();
+            }
+            return _super.prototype.UpdateInfo.call(this, arg);
+        };
+        return PartyBBSModel;
+    }(model_2.SSPreviewModel));
+    exports.PartyBBSModel = PartyBBSModel;
 });
 define("lib/ss/preview/diary/model_formatter", ["require", "exports", "lib/util/string/format", "lib/ss/preview/model_formatter"], function (require, exports, format, model_formatter_4) {
     "use strict";
@@ -1150,21 +914,21 @@ define("lib/ss/expr/rule", ["require", "exports"], function (require, exports) {
     }
     exports.CountExprChars = CountExprChars;
 });
-define("lib/ss/preview/diary/model", ["require", "exports", "lib/ss/preview/diary/model_formatter", "lib/preview/model", "lib/ss/expr/rule", "lib/ss/preview/config"], function (require, exports, model_formatter_5, model_3, rule_1, Config) {
+define("lib/ss/preview/diary/model", ["require", "exports", "lib/ss/preview/diary/model_formatter", "lib/ss/preview/model", "lib/ss/expr/rule", "lib/ss/preview/config", "lib/ss/preview/templates"], function (require, exports, model_formatter_5, model_3, rule_1, Config, Templates) {
     "use strict";
     var DiaryModel = (function (_super) {
         __extends(DiaryModel, _super);
         function DiaryModel(arg) {
             _super.call(this, new model_formatter_5.DiaryFormatter({
                 profile: arg.profile,
-                template: DiaryModel.TEMPLATE,
+                template: Templates.Preview.Diary,
                 at3ModeAsDefault: true
-            }));
-            if (typeof arg.showsCharCounts === "boolean") {
+            }), arg.delay_ms);
+            if ("showsCharCounts" in arg) {
                 this.showsCharCounts = arg.showsCharCounts;
             }
             else {
-                this.showsCharCounts = Config.diary_showsCharCounts || false;
+                this.showsCharCounts = Config.SSPreview.diary_showsCharCounts || false;
             }
         }
         Object.defineProperty(DiaryModel.prototype, "ShowsCharCounts", {
@@ -1181,37 +945,159 @@ define("lib/ss/preview/diary/model", ["require", "exports", "lib/ss/preview/diar
             enumerable: true,
             configurable: true
         });
-        DiaryModel.prototype.Update = function (source) {
-            this.charCounts = rule_1.CountExprChars(source);
-            return _super.prototype.Update.call(this, source);
+        DiaryModel.prototype.UpdateInfo = function (arg) {
+            this.charCounts = rule_1.CountExprChars(arg.source);
+            return _super.prototype.UpdateInfo.call(this, arg);
         };
-        DiaryModel.TEMPLATE = null;
         DiaryModel.MAX_LENGTH_OF_CHARS = 5000;
         DiaryModel.MAX_COUNT_OF_LFS = 2500;
         return DiaryModel;
-    }(model_3.PreviewModel));
+    }(model_3.SSPreviewModel));
     exports.DiaryModel = DiaryModel;
 });
-define("lib/ss/preview/diary/view", ["require", "exports", "lib/util/string/format", "lib/ss/preview/diary/model", "lib/preview/view"], function (require, exports, format, model_4, view_2) {
+define("lib/ss/preview/serif/model", ["require", "exports", "lib/ss/preview/model_formatter", "lib/ss/preview/model", "lib/ss/preview/templates"], function (require, exports, model_formatter_6, model_4, Templates) {
+    "use strict";
+    var SerifModel = (function (_super) {
+        __extends(SerifModel, _super);
+        function SerifModel(profile, delay_ms) {
+            _super.call(this, new model_formatter_6.Formatter({
+                profile: profile,
+                template: Templates.Preview.Serif,
+                allowsOrTag: true
+            }), delay_ms);
+        }
+        return SerifModel;
+    }(model_4.SSPreviewModel));
+    exports.SerifModel = SerifModel;
+});
+define("lib/ss/preview/message/model", ["require", "exports", "lib/ss/preview/model_formatter", "lib/ss/preview/model", "lib/ss/preview/templates"], function (require, exports, model_formatter_7, model_5, Templates) {
+    "use strict";
+    var MessageModel = (function (_super) {
+        __extends(MessageModel, _super);
+        function MessageModel(profile, delay_ms) {
+            _super.call(this, new model_formatter_7.Formatter({
+                profile: profile,
+                template: Templates.Preview.Message
+            }), delay_ms);
+        }
+        return MessageModel;
+    }(model_5.SSPreviewModel));
+    exports.MessageModel = MessageModel;
+});
+define("lib/ss/preview/model_formatters", ["require", "exports", "lib/ss/preview/diary/model_formatter", "lib/ss/preview/partyBBS/model_formatter", "lib/ss/preview/model_formatter"], function (require, exports, model_formatter_8, model_formatter_9, model_formatter_10) {
+    "use strict";
+    exports.Diary = model_formatter_8.DiaryFormatter;
+    exports.PartyBBS = model_formatter_9.PartyBBSFormatter;
+    exports.Formatter = model_formatter_10.Formatter;
+});
+define("lib/ss/preview/models", ["require", "exports", "lib/ss/preview/partyBBS/model", "lib/ss/preview/diary/model", "lib/ss/preview/serif/model", "lib/ss/preview/message/model"], function (require, exports, model_6, model_7, model_8, model_9) {
+    "use strict";
+    exports.PartyBBS = model_6.PartyBBSModel;
+    exports.Diary = model_7.DiaryModel;
+    exports.Serif = model_8.SerifModel;
+    exports.Message = model_9.MessageModel;
+});
+define("lib/preview/view", ["require", "exports", "jquery", "lib/preview/config"], function (require, exports, $, Config) {
+    "use strict";
+    (function (InsertWay) {
+        InsertWay[InsertWay["InsertAfter"] = 0] = "InsertAfter";
+        InsertWay[InsertWay["InsertBefore"] = 1] = "InsertBefore";
+        InsertWay[InsertWay["AppendTo"] = 2] = "AppendTo";
+        InsertWay[InsertWay["PrependTo"] = 3] = "PrependTo";
+    })(exports.InsertWay || (exports.InsertWay = {}));
+    var InsertWay = exports.InsertWay;
+    var PreviewView = (function () {
+        function PreviewView(insert) {
+            this.insert = insert;
+        }
+        Object.defineProperty(PreviewView.prototype, "PreviewContainer", {
+            get: function () {
+                return this.$container ? this.$container[0] : null;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        PreviewView.prototype.InsertContainer = function () {
+            this.$container = $(PreviewView.containerHTML);
+            switch (this.insert.way) {
+                case InsertWay.InsertAfter:
+                    this.$container.insertAfter(this.insert.target);
+                    break;
+                case InsertWay.InsertBefore:
+                    this.$container.insertBefore(this.insert.target);
+                    break;
+                case InsertWay.AppendTo:
+                    this.$container.appendTo(this.insert.target);
+                    break;
+                case InsertWay.PrependTo:
+                    this.$container.prependTo(this.insert.target);
+                    break;
+                default:
+                    throw new Error("InsertionMode指定エラー");
+            }
+            return this;
+        };
+        PreviewView.prototype.Hide = function (model) {
+            if (!this.$container) {
+                return;
+            }
+            this.$container.css("display", "none");
+            return this;
+        };
+        PreviewView.prototype.Show = function (model) {
+            if (!this.$container) {
+                return;
+            }
+            this.$container.css("display", "");
+            return this;
+        };
+        PreviewView.prototype.Update = function (model) {
+            if (!this.$container) {
+                this.InsertContainer();
+            }
+            if (model.IsVisible) {
+                this.Show(model);
+            }
+            else {
+                this.Hide(model);
+                if (Config.neverUpdateHTMLIfHidden) {
+                    return false;
+                }
+            }
+            if (model.IsDisabled) {
+                return false;
+            }
+            this.$container.html(model.PreviewHTML);
+            return true;
+        };
+        PreviewView.prototype.Dispose = function () {
+            this.$container.remove();
+        };
+        PreviewView.containerHTML = "<div class=\"preview\"/>";
+        return PreviewView;
+    }());
+    exports.PreviewView = PreviewView;
+});
+define("lib/ss/preview/diary/view", ["require", "exports", "lib/util/string/format", "lib/ss/preview/diary/model", "lib/preview/view", "lib/ss/preview/templates"], function (require, exports, format, model_10, view_1, Templates) {
     "use strict";
     var DiaryView = (function (_super) {
         __extends(DiaryView, _super);
-        function DiaryView(insertion) {
-            _super.call(this, insertion);
+        function DiaryView(insert) {
+            _super.call(this, insert);
         }
         DiaryView.BuildCharCountLine = function (counts) {
-            var html = DiaryView.TEMPLATE_CHARCOUNTS;
+            var html = Templates.Preview.DiaryCharCountsHTML || DiaryView._DEFAULT_TEMPLATE_CHARCOUNTS;
             html = format(html, {
                 charCount: counts.charCount,
-                charCountMax: model_4.DiaryModel.MAX_LENGTH_OF_CHARS,
+                charCountMax: model_10.DiaryModel.MAX_LENGTH_OF_CHARS,
                 lfCount: counts.lfCount,
-                lfCountMax: model_4.DiaryModel.MAX_COUNT_OF_LFS
+                lfCountMax: model_10.DiaryModel.MAX_COUNT_OF_LFS
             });
             var $p = $(html);
-            if (counts.charCount > model_4.DiaryModel.MAX_LENGTH_OF_CHARS) {
+            if (counts.charCount > model_10.DiaryModel.MAX_LENGTH_OF_CHARS) {
                 $p.children("[name=charCount]").addClass("over");
             }
-            if (counts.lfCount > model_4.DiaryModel.MAX_COUNT_OF_LFS) {
+            if (counts.lfCount > model_10.DiaryModel.MAX_COUNT_OF_LFS) {
                 $p.children("[name=lfCount]").addClass("over");
             }
             return $p;
@@ -1225,93 +1111,460 @@ define("lib/ss/preview/diary/view", ["require", "exports", "lib/util/string/form
             }
             return true;
         };
-        DiaryView.TEMPLATE_CHARCOUNTS = "<p class=\"char_count_line\">\n    <span class=\"char_count_cnt\"><span name=\"charCount\" class=\"char_count\">{charCount}</span> / {charCountMax}</span> <span class=\"lf_count_cnt\">(\u6539\u884C: <span name=\"lfCount\" class=\"lf_count\">{lfCount}</span> / {lfCountMax})</span>\n</p>";
+        DiaryView._DEFAULT_TEMPLATE_CHARCOUNTS = "<p class=\"char_count_line\"><span class=\"char_count_cnt\"><span name=\"charCount\" class=\"char_count\">{charCount}</span> / {charCountMax}</span> <span class=\"lf_count_cnt\">(\u6539\u884C: <span name=\"lfCount\" class=\"lf_count\">{lfCount}</span> / {lfCountMax})</span></p>";
         return DiaryView;
-    }(view_2.PreviewView));
+    }(view_1.PreviewView));
     exports.DiaryView = DiaryView;
 });
-define("lib/ss/preview/diary/controller", ["require", "exports", "lib/ss/preview/diary/model", "lib/ss/preview/diary/view", "lib/ss/preview/controller"], function (require, exports, model_5, view_3, controller_3) {
+define("lib/ss/preview/views", ["require", "exports", "lib/ss/preview/diary/view", "lib/preview/view"], function (require, exports, view_2, view_3) {
     "use strict";
-    var DiaryController = (function (_super) {
-        __extends(DiaryController, _super);
-        function DiaryController(arg) {
-            var model = new model_5.DiaryModel({ profile: arg.profile, showsCharCounts: arg.showsCharCounts });
-            var view = new view_3.DiaryView(arg.insertion);
-            _super.call(this, { delay_ms: arg.delay_ms, model: model, view: view, textbox: arg.textbox });
+    exports.Diary = view_2.DiaryView;
+    exports.InsertWay = view_3.InsertWay;
+});
+define("lib/util/array/set", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var FakeSet = (function () {
+        function FakeSet(equalityValidator, array) {
+            if (equalityValidator === void 0) { equalityValidator = function (v1, v2) { return (v1 === v2); }; }
+            this.equalityValidator = equalityValidator;
+            if (array && array instanceof Array) {
+                this.innerArray = array.concat();
+            }
+            else {
+                this.innerArray = [];
+            }
         }
-        return DiaryController;
-    }(controller_3.SSPreviewController));
-    exports.DiaryController = DiaryController;
+        FakeSet.prototype.has = function (e) {
+            return this.indexOf(e) !== -1;
+        };
+        FakeSet.prototype.indexOf = function (e) {
+            var _this = this;
+            var index;
+            var hasFound = this.innerArray.some(function (v, i, a) {
+                index = i;
+                return _this.equalityValidator(v, e);
+            });
+            if (hasFound) {
+                return index;
+            }
+            else {
+                return -1;
+            }
+        };
+        FakeSet.prototype.add = function (e) {
+            if (this.has(e)) {
+                return this;
+            }
+            this.innerArray.push(e);
+            return this;
+        };
+        FakeSet.prototype.addAll = function (a) {
+            for (var _i = 0, a_1 = a; _i < a_1.length; _i++) {
+                var e = a_1[_i];
+                this.add(e);
+            }
+            return this;
+        };
+        // 名称がdeleteだとYUIに弾かれるが故に再現できない。
+        FakeSet.prototype.del = function (e) {
+            var index = this.indexOf(e);
+            if (index === -1) {
+                return false;
+            }
+            this.innerArray.splice(index, 1);
+            return true;
+        };
+        // return: boolean. at least one element has removed
+        FakeSet.prototype.delAll = function (a) {
+            var f = false;
+            for (var _i = 0, a_2 = a; _i < a_2.length; _i++) {
+                var e = a_2[_i];
+                f = this.del(e) || f;
+            }
+            return f;
+        };
+        FakeSet.prototype.clear = function () {
+            this.innerArray = [];
+        };
+        FakeSet.prototype.forEach = function (callback) {
+            for (var _i = 0, _a = this.innerArray; _i < _a.length; _i++) {
+                var i = _a[_i];
+                callback(i, i, this);
+            }
+        };
+        Object.defineProperty(FakeSet.prototype, "size", {
+            get: function () {
+                return this.innerArray.length;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        FakeSet.prototype.toArray = function () {
+            return this.innerArray.concat();
+        };
+        return FakeSet;
+    }());
+    return FakeSet;
 });
-define("lib/ss/preview/serif/model", ["require", "exports", "lib/ss/preview/model_formatter", "lib/preview/model"], function (require, exports, model_formatter_6, model_6) {
+/// <reference path="../../../typings/index.d.ts" />
+define("lib/util/jquery/customEvent", ["require", "exports", "lib/util/array/set", "jquery"], function (require, exports, Set, $) {
     "use strict";
-    var SerifModel = (function (_super) {
-        __extends(SerifModel, _super);
-        function SerifModel(profile) {
-            _super.call(this, new model_formatter_6.Formatter({
-                profile: profile,
-                template: SerifModel.TEMPLATE,
-                allowsOrTag: true
-            }));
+    function ValidateEventsEquality(v1, v2) {
+        return v1.target.is(v2) && v1.eventType === v2.eventType;
+    }
+    var Event = (function () {
+        function Event(name, callback) {
+            var _this = this;
+            this.name = name;
+            this.$callback = $.Callbacks("unique stopOnFalse");
+            this._thisEventCallback = function (e) {
+                _this.$callback.fire(e);
+                $(document).triggerHandler(_this.name);
+            };
+            this.evts = new Set(ValidateEventsEquality);
+            this.$callback.add(callback);
         }
-        SerifModel.TEMPLATE = null;
-        return SerifModel;
-    }(model_6.PreviewModel));
-    exports.SerifModel = SerifModel;
+        Object.defineProperty(Event.prototype, "Name", {
+            get: function () {
+                return this.name;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Event.prototype.AddCallback = function (callback) {
+            this.$callback.add(callback);
+            return this;
+        };
+        Event.prototype.AddCallbacks = function (callbacks) {
+            this.$callback.add(callbacks);
+            return this;
+        };
+        Event.prototype.RemoveCallback = function (callback) {
+            this.$callback.remove(callback);
+            return this;
+        };
+        Event.prototype.RemoveCallbacks = function (callbacks) {
+            if (callbacks) {
+                this.$callback.empty();
+            }
+            else {
+                this.$callback.remove(callbacks);
+            }
+            return this;
+        };
+        Event.prototype.AddTrigger = function (evt) {
+            if (this.evts.has(evt)) {
+                return false;
+            }
+            $(evt.target).on(evt.eventType, this._thisEventCallback);
+            this.evts.add(evt);
+            return true;
+        };
+        Event.prototype.AddTriggers = function (evts) {
+            for (var _i = 0, evts_1 = evts; _i < evts_1.length; _i++) {
+                var evt = evts_1[_i];
+                this.AddTrigger(evt);
+            }
+            return this;
+        };
+        Event.prototype.RemoveTrigger = function (evt) {
+            if (!this.evts.has(evt)) {
+                return false;
+            }
+            $(evt.target).off(evt.eventType, this._thisEventCallback);
+            return this.evts.del(evt);
+        };
+        Event.prototype.RemoveTriggers = function (evts) {
+            if (!evts) {
+                this.RemoveAllTriggers();
+            }
+            for (var _i = 0, evts_2 = evts; _i < evts_2.length; _i++) {
+                var evt = evts_2[_i];
+                this.RemoveTrigger(evt);
+            }
+            return this;
+        };
+        Event.prototype.RemoveAllTriggers = function () {
+            var _this = this;
+            this.evts.forEach(function (evt) {
+                $(evt.target).off(evt.eventType, _this._thisEventCallback);
+            });
+            this.evts.clear();
+            return this;
+        };
+        Event.prototype.Dispose = function () {
+            this.RemoveAllTriggers();
+            this.$callback.disable();
+        };
+        return Event;
+    }());
+    exports.Event = Event;
 });
-define("lib/ss/preview/serif/controller", ["require", "exports", "lib/ss/preview/serif/model", "lib/preview/view", "lib/ss/preview/controller"], function (require, exports, model_7, view_4, controller_4) {
+define("lib/preview/controller", ["require", "exports", "lib/util/jquery/customEvent"], function (require, exports, customEvent_1) {
     "use strict";
-    var SerifController = (function (_super) {
-        __extends(SerifController, _super);
-        function SerifController(arg) {
-            var model = new model_7.SerifModel(arg.profile);
-            var view = new view_4.PreviewView(arg.insertion);
-            _super.call(this, { delay_ms: arg.delay_ms, model: model, view: view, textbox: arg.textbox });
+    var PreviewController = (function () {
+        function PreviewController(arg) {
+            var _this = this;
+            this.callback_onPreviewTriggerd = function (eventObject) {
+                _this.ReserveUpdate();
+            };
+            // notice: follow this define order.
+            this.onPreviewTriggered = new customEvent_1.Event("onPreviewTriggered", this.callback_onPreviewTriggerd);
+            this.model = arg.model;
+            this.view = arg.view;
+            this.model.onUpdated(function (model) {
+                _this.view.Update(model);
+            });
         }
-        return SerifController;
-    }(controller_4.SSPreviewController));
-    exports.SerifController = SerifController;
+        Object.defineProperty(PreviewController.prototype, "OnPreviewTriggerd", {
+            get: function () {
+                return this.onPreviewTriggered;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        // 'for user-buttons' methods
+        PreviewController.prototype.ReserveUpdate = function () {
+            return this.model.ReserveUpdate(this.BuildUpdateArg());
+        };
+        PreviewController.prototype.Update = function () {
+            this.model.Update(this.BuildUpdateArg());
+            return this;
+        };
+        PreviewController.prototype.Show = function () {
+            if (!this.model.PreviewHTML) {
+                this.Update();
+            }
+            else {
+                this.model.Show();
+            }
+            return this;
+        };
+        PreviewController.prototype.Hide = function () {
+            this.model.Hide();
+            return this;
+        };
+        PreviewController.prototype.Enable = function () {
+            this.model.SetAsEnabled();
+            return this;
+        };
+        PreviewController.prototype.Disable = function () {
+            this.model.SetAsDisabled();
+            return this;
+        };
+        PreviewController.prototype.Dispose = function () {
+            // this.model.offUpdated(..);
+            this.model.Dispose();
+            this.view.Dispose();
+            this.onPreviewTriggered.Dispose();
+        };
+        return PreviewController;
+    }());
+    exports.PreviewController = PreviewController;
 });
-define("lib/ss/preview/message/model", ["require", "exports", "lib/ss/preview/model_formatter", "lib/preview/model"], function (require, exports, model_formatter_7, model_8) {
+define("lib/ss/preview/controller", ["require", "exports", "jquery", "lib/preview/controller"], function (require, exports, $, controller_1) {
     "use strict";
-    var MessageModel = (function (_super) {
-        __extends(MessageModel, _super);
-        function MessageModel(profile) {
-            _super.call(this, new model_formatter_7.Formatter({
-                profile: profile,
-                template: MessageModel.TEMPLATE
-            }));
+    var SSPreviewController = (function (_super) {
+        __extends(SSPreviewController, _super);
+        function SSPreviewController(arg) {
+            _super.call(this, arg);
+            this.textbox = arg.textbox;
+            this.OnPreviewTriggerd.AddTrigger({ target: $(this.textbox), eventType: "keyup" });
         }
-        MessageModel.TEMPLATE = null;
-        return MessageModel;
-    }(model_8.PreviewModel));
-    exports.MessageModel = MessageModel;
+        SSPreviewController.prototype.BuildUpdateArg = function (extraArg) {
+            var source = this.textbox.value;
+            return { source: source, extraArg: extraArg };
+        };
+        return SSPreviewController;
+    }(controller_1.PreviewController));
+    exports.SSPreviewController = SSPreviewController;
 });
-define("lib/ss/preview/message/controller", ["require", "exports", "lib/ss/preview/message/model", "lib/preview/view", "lib/ss/preview/controller"], function (require, exports, model_9, view_5, controller_5) {
+define("lib/ss/preview/partyBBS/controller", ["require", "exports", "jquery", "lib/ss/preview/controller"], function (require, exports, $, controller_2) {
     "use strict";
-    var MessageController = (function (_super) {
-        __extends(MessageController, _super);
-        function MessageController(arg) {
-            var model = new model_9.MessageModel(arg.profile);
-            var view = new view_5.PreviewView(arg.insertion);
-            _super.call(this, { delay_ms: arg.delay_ms, model: model, view: view, textbox: arg.textbox });
+    var PartyBBSController = (function (_super) {
+        __extends(PartyBBSController, _super);
+        function PartyBBSController(arg) {
+            // super({ model: arg.model, view, textbox: arg.textbox });
+            _super.call(this, arg);
+            this.titleInput = arg.titleInput;
+            this.nameInput = arg.nameInput;
+            this.OnPreviewTriggerd.AddTriggers([
+                { target: $(this.titleInput), eventType: "keyup" },
+                { target: $(this.nameInput), eventType: "keyup" }
+            ]);
         }
-        return MessageController;
-    }(controller_5.SSPreviewController));
-    exports.MessageController = MessageController;
+        PartyBBSController.prototype.BuildUpdateArg = function (extraArg) {
+            var name = this.nameInput.value;
+            var title = this.titleInput.value;
+            var ext = $.extend(extraArg, { name: name, title: title });
+            return _super.prototype.BuildUpdateArg.call(this, { name: name, title: title });
+        };
+        return PartyBBSController;
+    }(controller_2.SSPreviewController));
+    exports.PartyBBSController = PartyBBSController;
 });
-define("lib/ss/preview/controllers", ["require", "exports", "lib/ss/preview/partyBBS/controller", "lib/ss/preview/diary/controller", "lib/ss/preview/serif/controller", "lib/ss/preview/message/controller"], function (require, exports, controller_6, controller_7, controller_8, controller_9) {
+define("lib/ss/preview/controllers", ["require", "exports", "lib/ss/preview/partyBBS/controller"], function (require, exports, controller_3) {
     "use strict";
-    exports.PartyBBS = controller_6.PartyBBSController;
-    exports.Diary = controller_7.DiaryController;
-    exports.Serif = controller_8.SerifController;
-    exports.Message = controller_9.MessageController;
+    exports.PartyBBS = controller_3.PartyBBSController;
+    // export { PartyBBS, Diary, Serif, Message, IPreviewController };
 });
-define("lib/ss/preview/preview", ["require", "exports", "lib/ss/preview/controllers", "lib/ss/preview/config", "lib/preview/view"], function (require, exports, Controllers, Config, view_6) {
+define("lib/ss/preview/packagedPreview", ["require", "exports"], function (require, exports) {
     "use strict";
-    exports.Controllers = Controllers;
+});
+define("lib/ss/preview/diary/package", ["require", "exports", "jquery", "lib/ss/preview/controller", "lib/ss/preview/diary/model", "lib/ss/preview/diary/view"], function (require, exports, $, controller_4, model_11, view_4) {
+    "use strict";
+    // import { DiaryController } from "./controller";
+    var DiaryPackage = (function () {
+        function DiaryPackage(args) {
+            this._model = new model_11.DiaryModel(args.model);
+            this._view = new view_4.DiaryView(args.view.insert);
+            var ctrlArg = $.extend(args.ctrl, { model: this._model, view: this._view });
+            this._ctrl = new controller_4.SSPreviewController(ctrlArg);
+        }
+        Object.defineProperty(DiaryPackage.prototype, "Model", {
+            get: function () {
+                return this._model;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(DiaryPackage.prototype, "View", {
+            get: function () {
+                return this._view;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(DiaryPackage.prototype, "Controller", {
+            get: function () {
+                return this._ctrl;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return DiaryPackage;
+    }());
+    exports.DiaryPackage = DiaryPackage;
+});
+define("lib/ss/preview/message/package", ["require", "exports", "jquery", "lib/preview/view", "lib/ss/preview/controller", "lib/ss/preview/message/model"], function (require, exports, $, view_5, controller_5, model_12) {
+    "use strict";
+    // import { MessageController } from "./controller";
+    var MessagePackage = (function () {
+        function MessagePackage(args) {
+            this._model = new model_12.MessageModel(args.model.profile);
+            this._view = new view_5.PreviewView(args.view.insert);
+            var ctrlArg = $.extend(args.ctrl, { model: this._model, view: this._view });
+            this._ctrl = new controller_5.SSPreviewController(ctrlArg);
+        }
+        Object.defineProperty(MessagePackage.prototype, "Model", {
+            get: function () {
+                return this._model;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(MessagePackage.prototype, "View", {
+            get: function () {
+                return this._view;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(MessagePackage.prototype, "Controller", {
+            get: function () {
+                return this._ctrl;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return MessagePackage;
+    }());
+    exports.MessagePackage = MessagePackage;
+});
+define("lib/ss/preview/partyBBS/package", ["require", "exports", "jquery", "lib/preview/view", "lib/ss/preview/partyBBS/model", "lib/ss/preview/partyBBS/controller"], function (require, exports, $, view_6, model_13, controller_6) {
+    "use strict";
+    var PartyBBSPackage = (function () {
+        function PartyBBSPackage(args) {
+            this._model = new model_13.PartyBBSModel(args.model.profile);
+            this._view = new view_6.PreviewView(args.view.insert);
+            var ctrlArg = $.extend(args.ctrl, { model: this._model, view: this._view });
+            this._ctrl = new controller_6.PartyBBSController(ctrlArg);
+        }
+        Object.defineProperty(PartyBBSPackage.prototype, "Model", {
+            get: function () {
+                return this._model;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PartyBBSPackage.prototype, "View", {
+            get: function () {
+                return this._view;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PartyBBSPackage.prototype, "Controller", {
+            get: function () {
+                return this._ctrl;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return PartyBBSPackage;
+    }());
+    exports.PartyBBSPackage = PartyBBSPackage;
+});
+define("lib/ss/preview/serif/package", ["require", "exports", "jquery", "lib/preview/view", "lib/ss/preview/controller", "lib/ss/preview/serif/model"], function (require, exports, $, view_7, controller_7, model_14) {
+    "use strict";
+    // import { SerifController } from "./controller";
+    var SerifPackage = (function () {
+        function SerifPackage(args) {
+            this._model = new model_14.SerifModel(args.model.profile);
+            this._view = new view_7.PreviewView(args.view.insert);
+            var ctrlArg = $.extend(args.ctrl, { model: this._model, view: this._view });
+            this._ctrl = new controller_7.SSPreviewController(ctrlArg);
+        }
+        Object.defineProperty(SerifPackage.prototype, "Model", {
+            get: function () {
+                return this._model;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(SerifPackage.prototype, "View", {
+            get: function () {
+                return this._view;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(SerifPackage.prototype, "Controller", {
+            get: function () {
+                return this._ctrl;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return SerifPackage;
+    }());
+    exports.SerifPackage = SerifPackage;
+});
+define("lib/ss/preview/packages", ["require", "exports", "lib/ss/preview/diary/package", "lib/ss/preview/message/package", "lib/ss/preview/partyBBS/package", "lib/ss/preview/serif/package"], function (require, exports, package_1, package_2, package_3, package_4) {
+    "use strict";
+    exports.Diary = package_1.DiaryPackage;
+    exports.Message = package_2.MessagePackage;
+    exports.PartyBBS = package_3.PartyBBSPackage;
+    exports.Serif = package_4.SerifPackage;
+});
+define("lib/ss/preview", ["require", "exports", "lib/ss/preview/models", "lib/ss/preview/views", "lib/ss/preview/controllers", "lib/ss/preview/packages", "lib/ss/preview/config", "lib/ss/profile"], function (require, exports, Model, View, Controller, Package, Config, Profile) {
+    "use strict";
+    exports.Model = Model;
+    exports.View = View;
+    exports.Controller = Controller;
+    exports.Package = Package;
     exports.Config = Config;
-    exports.InsertionMode = view_6.InsertionMode;
+    exports.Profile = Profile;
 });
 define("lib/ss/pages/characterSettings", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -1345,49 +1598,60 @@ define("lib/ss/pages", ["require", "exports", "lib/ss/pages/characterSettings"],
     "use strict";
     exports.CharacterSettings = characterSettings_1.CharacterSettings;
 });
-define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "lib/ss/page", "lib/ss/preview/preview", "lib/ss/pages"], function (require, exports, $, profile_1, page_1, Preview, Pages) {
+define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "lib/ss/page", "lib/ss/preview", "lib/ss/pages"], function (require, exports, $, profile_1, page_1, Preview, Pages) {
     "use strict";
     var SSPreviewer;
     (function (SSPreviewer) {
         // const $: JQueryStatic = jQuery;
         function Init() {
-            Preview.Config.previewDelay_ms = 100;
-            Preview.Config.randomizesDiceTagResult = true;
+            Preview.Config.Preview.previewDelay_ms = 100;
+            Preview.Config.SSPreview.randomizesDiceTagResult = true;
             $("head").append("<style type='text/css'>\n    .clearfix:after {\n        content: \"\";\n        display: block;\n        clear: both;\n    }\n    .separator_or {\n        background-color: rgba(255,255,255,0.25);\n        border-radius: 2px;\n        margin: 4px 0px;\n        text-align: center;\n        vertical-align: middle;\n    }\n    .separator_or:before {\n        content: \"- OR -\";\n    }\n</style>");
-            function InitAllTextboxesWithSerifPreview(profile) {
-                return $("textarea").toArray().map(function (e, i) {
-                    return new Preview.Controllers.Serif({
-                        profile: profile,
-                        insertion: { target: e, mode: Preview.InsertionMode.InsertAfter },
-                        textbox: e,
+            function InitWithSerifPreview(profile, $targetTextBox) {
+                return $targetTextBox.toArray().map(function (e, i) {
+                    return new Preview.Package.Serif({
+                        model: { profile: profile },
+                        view: { insert: { target: e, way: Preview.View.InsertWay.InsertAfter } },
+                        ctrl: { textbox: e },
                     });
                 });
             }
             ;
-            function InitAllTextboxesWithMessagePreview(profile) {
-                return $("textarea").toArray().map(function (e, i) {
+            function InitWithMessagePreview(profile, $targetTextBox) {
+                return $targetTextBox.toArray().map(function (e, i) {
                     var imageURLBox = $(e).nextUntil("input").last().next()[0];
-                    return new Preview.Controllers.Message({
-                        profile: profile,
-                        insertion: { target: e, mode: Preview.InsertionMode.InsertAfter },
-                        textbox: e,
+                    return new Preview.Package.Message({
+                        model: { profile: profile },
+                        view: { insert: { target: e, way: Preview.View.InsertWay.InsertAfter } },
+                        ctrl: { textbox: e },
                     });
                 });
+            }
+            ;
+            function InitAllTextboxesWithSerifPreview(profile) {
+                return InitWithSerifPreview(profile, $("textarea"));
+            }
+            ;
+            function InitAllTextboxesWithMessagePreview(profile) {
+                return InitWithMessagePreview(profile, $("textarea"));
             }
             ;
             function ShowAllPreviews(previews) {
                 for (var _i = 0, previews_1 = previews; _i < previews_1.length; _i++) {
                     var p_1 = previews_1[_i];
-                    p_1.Show();
+                    p_1.Controller.Update();
                 }
             }
             function HideAllPreviews(previews) {
                 for (var _i = 0, previews_2 = previews; _i < previews_2.length; _i++) {
                     var p_2 = previews_2[_i];
-                    p_2.Hide();
+                    p_2.Controller.Hide();
                 }
             }
             function InsertToggleAllButton(previews) {
+                if (previews.length === 0) {
+                    return;
+                }
                 $("head").append("<style type='text/css'>\n        .showOnActive, .active .hideOnActive {\n            display: none;\n        }\n        .active .showOnActive, .hideOnActive {\n            display: inherit;\n        }\n    </style>");
                 var $b = $("<a id='showAllPreviews' class='clearFix' href='#' style='display: block; float: right;'><button type='button' onclick='return false;'>全てのプレビューを<span class='hideOnActive'>表示</span><span class='showOnActive'>隠す</span></button></a>").on("click", function () {
                     $b.toggleClass("active");
@@ -1402,50 +1666,65 @@ define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "l
             }
             var p = page_1.PageConfig;
             var profile = new profile_1.Profile();
-            p.Common = new page_1.Page(profile, function (profile) {
+            p.ForAllPages = new page_1.Page(profile, function (profile) {
                 $("#char_Button").before("<center class='F1'>↓(Previewer) アイコン・愛称の自動読込↓</center>");
             });
             p.MainPage = new page_1.Page(profile, function (profile) {
                 $("head").append("<style type='text/css'>\n    .char_count_line {\n        text-align: left;\n    }\n    .char_count_cnt {\n        font-size: 12px;\n    }\n    .lf_count_cnt {\n        font-size: 10px;\n    }\n    .char_count_line .char_count_over, .char_count_line .lf_count_over {\n        color: #CC3333;\n        font-weight: bold;\n    }\n    .char_count_line .char_count_over {\n        font-size: 16px;\n    }\n    .char_count_line .lf_count_over {\n        font-size: 14px;\n    }\n</style>");
+                var previews = [];
                 var diaryBox = $("#Diary_TextBox")[0];
-                var diaryPreview = new Preview.Controllers.Diary({
-                    profile: profile,
-                    insertion: { target: diaryBox, mode: Preview.InsertionMode.InsertAfter },
-                    textbox: diaryBox,
-                });
-                var serifWhenUsingItem = $("#TextBox12")[0];
-                var serifPreview_WhenUsingItem = new Preview.Controllers.Serif({
-                    profile: profile,
-                    insertion: { target: serifWhenUsingItem, mode: Preview.InsertionMode.InsertAfter },
-                    textbox: serifWhenUsingItem,
-                });
-                var serifWhenDumpingItem = $("#TextBox19")[0];
-                var serifPreview_WhenDumpingItem = new Preview.Controllers.Serif({
-                    profile: profile,
-                    insertion: { target: serifWhenDumpingItem, mode: Preview.InsertionMode.InsertAfter },
-                    textbox: serifWhenDumpingItem,
-                });
-                var shout = $("#TextBox17")[0];
-                var serifPreview_shout = new Preview.Controllers.Serif({
-                    profile: profile,
-                    insertion: { target: shout, mode: Preview.InsertionMode.InsertAfter },
-                    textbox: shout,
-                });
-                InsertToggleAllButton([
-                    diaryPreview,
-                    serifPreview_WhenUsingItem,
-                    serifPreview_WhenDumpingItem,
-                    serifPreview_shout
-                ]);
+                if (diaryBox) {
+                    var diaryPreview = new Preview.Package.Diary({
+                        model: { profile: profile },
+                        view: { insert: { target: diaryBox, way: Preview.View.InsertWay.InsertAfter } },
+                        ctrl: { textbox: diaryBox },
+                    });
+                    previews.push(diaryPreview);
+                }
+                var serifTargetBox = $("input").filter("[style*='width:367px']");
+                var serifPreviews = InitWithSerifPreview(profile, serifTargetBox);
+                if (serifPreviews.length > 0) {
+                    previews.concat(serifPreviews);
+                }
+                // let serifWhenUsingItem: HTMLInputElement = <HTMLInputElement>$("#TextBox12")[0];
+                // let serifPreview_WhenUsingItem = new Preview.Package.Serif({
+                //     model: { profile },
+                //     view: { insert: { target: serifWhenUsingItem, way: Preview.View.InsertWay.InsertAfter } },
+                //     ctrl: { textbox: serifWhenUsingItem },
+                // });
+                // let serifWhenDumpingItem: HTMLInputElement = <HTMLInputElement>$("#TextBox19")[0];
+                // let serifPreview_WhenDumpingItem = new Preview.Package.Serif({
+                //     model: { profile },
+                //     view: { insert: { target: serifWhenDumpingItem, way: Preview.View.InsertWay.InsertAfter } },
+                //     ctrl: { textbox: serifWhenDumpingItem },
+                // });
+                // let serifWhenSynsethingStone: HTMLInputElement = <HTMLInputElement>$("#TextBox20")[0];
+                // let serifPreview_WhenSynsethingStone = new Preview.Package.Serif({
+                //     model: { profile },
+                //     view: { insert: { target: serifWhenSynsethingStone, way: Preview.View.InsertWay.InsertAfter } },
+                //     ctrl: { textbox: serifWhenSynsethingStone },
+                // });
+                // let shout: HTMLInputElement = <HTMLInputElement>$("#TextBox17")[0];
+                // let serifPreview_shout = new Preview.Package.Serif({
+                //     model: { profile },
+                //     view: { insert: { target: shout, way: Preview.View.InsertWay.InsertAfter } },
+                //     ctrl: { textbox: shout },
+                // });
+                InsertToggleAllButton(previews);
             });
             p.PartyBBS = new page_1.Page(profile, function (profile) {
                 var $commentBox = $("#commentTxt");
-                var preview = new Preview.Controllers.PartyBBS({
-                    profile: profile,
-                    insertion: { target: $commentBox.closest("div.BackBoard")[0], mode: Preview.InsertionMode.InsertAfter },
-                    textbox: $commentBox[0],
-                    nameInput: $("#nameTxt")[0],
-                    titleInput: $("#titleTxt")[0]
+                if ($commentBox.length === 0) {
+                    return;
+                }
+                var preview = new Preview.Package.PartyBBS({
+                    model: { profile: profile },
+                    view: { insert: { target: $commentBox.closest("div.BackBoard")[0], way: Preview.View.InsertWay.InsertAfter } },
+                    ctrl: {
+                        textbox: $commentBox[0],
+                        nameInput: $("#nameTxt")[0],
+                        titleInput: $("#titleTxt")[0]
+                    },
                 });
                 InsertToggleAllButton([preview]);
             });
@@ -1473,17 +1752,23 @@ define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "l
                 var previews = InitAllTextboxesWithMessagePreview(profile);
                 InsertToggleAllButton(previews);
             });
+            p.MessageLog = new page_1.Page(profile, function (profile) {
+                var previews = InitAllTextboxesWithMessagePreview(profile);
+                InsertToggleAllButton(previews);
+            });
             p.CharacterSettings = new page_1.Page(profile, function (profile) {
                 profile.SaveIconURLArray(Pages.CharacterSettings.ExtractIconUrlArray());
                 profile.SaveNickname(Pages.CharacterSettings.ExtractNickname());
             });
             p.Community = new page_1.Page(profile, function (profile) {
                 var communityCaptionBox = $("textarea")[0];
-                var preview = new Preview.Controllers.Diary({
-                    profile: profile,
-                    insertion: { target: communityCaptionBox, mode: Preview.InsertionMode.InsertAfter },
-                    textbox: communityCaptionBox,
-                    showsCharCounts: false
+                if (!communityCaptionBox) {
+                    return;
+                }
+                var preview = new Preview.Package.Diary({
+                    model: { profile: profile, showsCharCounts: false },
+                    view: { insert: { target: communityCaptionBox, way: Preview.View.InsertWay.InsertAfter } },
+                    ctrl: { textbox: communityCaptionBox },
                 });
                 InsertToggleAllButton([preview]);
             });
