@@ -6,7 +6,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.022
+// @version     0.1.023
 // @grant       none
 // ==/UserScript==
 //
@@ -1684,7 +1684,7 @@ define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "l
                 var serifTargetBox = $("input").filter("[style*='width:367px']");
                 var serifPreviews = InitWithSerifPreview(profile, serifTargetBox);
                 if (serifPreviews.length > 0) {
-                    previews.concat(serifPreviews);
+                    Array.prototype.push.apply(previews, serifPreviews);
                 }
                 // let serifWhenUsingItem: HTMLInputElement = <HTMLInputElement>$("#TextBox12")[0];
                 // let serifPreview_WhenUsingItem = new Preview.Package.Serif({

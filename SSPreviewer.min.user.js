@@ -6,7 +6,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.022
+// @version     0.1.023
 // @grant       none
 // ==/UserScript==
 //
@@ -184,7 +184,7 @@ var p=g("<a id='showAllPreviews' class='clearFix' href='#' style='display: block
 if(p.hasClass("active")){q(u);}else{o(u);}});g("td.BackMessage2").eq(0).prepend(p);}var k=h.PageConfig;var l=new d.Profile();k.ForAllPages=new h.Page(l,function(p){g("#char_Button").before("<center class='F1'>↓(Previewer) アイコン・愛称の自動読込↓</center>");
 });k.MainPage=new h.Page(l,function(v){g("head").append("<style type='text/css'>\n    .char_count_line {\n        text-align: left;\n    }\n    .char_count_cnt {\n        font-size: 12px;\n    }\n    .lf_count_cnt {\n        font-size: 10px;\n    }\n    .char_count_line .char_count_over, .char_count_line .lf_count_over {\n        color: #CC3333;\n        font-weight: bold;\n    }\n    .char_count_line .char_count_over {\n        font-size: 16px;\n    }\n    .char_count_line .lf_count_over {\n        font-size: 14px;\n    }\n</style>");
 var w=[];var u=g("#Diary_TextBox")[0];if(u){var y=new f.Package.Diary({model:{profile:v},view:{insert:{target:u,way:f.View.InsertWay.InsertAfter}},ctrl:{textbox:u},});
-w.push(y);}var p=g("input").filter("[style*='width:367px']");var x=r(v,p);if(x.length>0){w.concat(x);}t(w);});k.PartyBBS=new h.Page(l,function(u){var p=g("#commentTxt");
+w.push(y);}var p=g("input").filter("[style*='width:367px']");var x=r(v,p);if(x.length>0){Array.prototype.push.apply(w,x);}t(w);});k.PartyBBS=new h.Page(l,function(u){var p=g("#commentTxt");
 if(p.length===0){return;}var v=new f.Package.PartyBBS({model:{profile:u},view:{insert:{target:p.closest("div.BackBoard")[0],way:f.View.InsertWay.InsertAfter}},ctrl:{textbox:p[0],nameInput:g("#nameTxt")[0],titleInput:g("#titleTxt")[0]},});
 t([v]);});k.Trade=new h.Page(l,function(p){var u=n(p);t(u);});k.Reinforcement=new h.Page(l,function(p){var u=n(p);t(u);});k.BattleSettings=new h.Page(l,function(p){var u=n(p);
 t(u);});k.BattleWords=new h.Page(l,function(p){var u=n(p);t(u);});k.Message=new h.Page(l,function(p){var u=m(p);t(u);});k.GroupMessage=new h.Page(l,function(p){var u=m(p);
