@@ -6,7 +6,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.023
+// @version     0.1.024
 // @grant       none
 // ==/UserScript==
 //
@@ -126,6 +126,7 @@ define("lib/ss/page", ["require", "exports"], function (require, exports) {
                     "/d/tradeaction.aspx": PageConfig.Trade,
                     "/d/strgsaction.aspx": PageConfig.Reinforcement,
                     "/d/battle.aspx": PageConfig.BattleSettings,
+                    "/d/battleprc.aspx": PageConfig.BattleSettings,
                     "/d/battlemessage.aspx": PageConfig.BattleWords,
                     "/d/battlemessageprc.aspx": PageConfig.BattleWords,
                     "/d/bms.aspx": PageConfig.BattleWords,

@@ -6,7 +6,7 @@
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.023
+// @version     0.1.024
 // @grant       none
 // ==/UserScript==
 //
@@ -23,7 +23,7 @@ if(e===null){return"(名称)";}return e;};d.SaveNickname=function(e){localStorag
 if(e===null){return"";}return e;};d.SaveNameColor=function(e){localStorage.setItem("SSPreview_NameColor",e);};return d;}());a.Profile=b;});define("lib/ss/page",["require","exports"],function(b,a){var c=(function(){function e(f,g){this.profile=f;
 this.initializer=g;}e.prototype.Init=function(f){this.initializer(f);};Object.defineProperty(e.prototype,"Settings",{get:function(){return this.profile;
 },enumerable:true,configurable:true});Object.defineProperty(e.prototype,"Initializer",{get:function(){return this.initializer;},enumerable:true,configurable:true});
-return e;}());a.Page=c;var d=(function(){function e(){}Object.defineProperty(e,"pathnameToPage",{get:function(){return{"/d/mainaction.aspx":e.MainPage,"/d/pbbs.aspx":e.PartyBBS,"/d/tradeaction.aspx":e.Trade,"/d/strgsaction.aspx":e.Reinforcement,"/d/battle.aspx":e.BattleSettings,"/d/battlemessage.aspx":e.BattleWords,"/d/battlemessageprc.aspx":e.BattleWords,"/d/bms.aspx":e.BattleWords,"/d/messageaction.aspx":e.Message,"/d/commesaction.aspx":e.GroupMessage,"/d/messagelog.aspx":e.MessageLog,"/d/commeslog.aspx":e.MessageLog,"/d/chara.aspx":e.CharacterSettings,"/d/com.aspx":e.Community,};
+return e;}());a.Page=c;var d=(function(){function e(){}Object.defineProperty(e,"pathnameToPage",{get:function(){return{"/d/mainaction.aspx":e.MainPage,"/d/pbbs.aspx":e.PartyBBS,"/d/tradeaction.aspx":e.Trade,"/d/strgsaction.aspx":e.Reinforcement,"/d/battle.aspx":e.BattleSettings,"/d/battleprc.aspx":e.BattleSettings,"/d/battlemessage.aspx":e.BattleWords,"/d/battlemessageprc.aspx":e.BattleWords,"/d/bms.aspx":e.BattleWords,"/d/messageaction.aspx":e.Message,"/d/commesaction.aspx":e.GroupMessage,"/d/messagelog.aspx":e.MessageLog,"/d/commeslog.aspx":e.MessageLog,"/d/chara.aspx":e.CharacterSettings,"/d/com.aspx":e.Community,};
 },enumerable:true,configurable:true});e.RunInitializer=function(g,f){if(this.ForAllPages){this.ForAllPages.Init(g);}var h=f.pathname;if(e.pathnameToPage.hasOwnProperty(h)&&e.pathnameToPage[h]){e.pathnameToPage[h].Init(g);
 }};return e;}());a.PageConfig=d;});define("lib/util/string/format",["require","exports"],function(b,a){function c(g,e){if(g===null||g===undefined){return g;
 }var f=""+g;for(var d in e){if(e[d]===undefined&&e[d]===null){continue;}f=f.replace(new RegExp("{"+d+"}","g"),""+e[d]);}return f;}return c;});define("lib/util/string/replaceLoop",["require","exports"],function(b,a){function c(f,d,g){if(f===null||f===undefined){return f;
