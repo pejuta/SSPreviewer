@@ -1,5 +1,5 @@
 # SSPreviewer
-[Seven Seas(七海)](http://www.sssloxia.jp/index.html) 宣言ページにさまざまなプレビューを追加するユーザースクリプトです。
+[Seven Seas(七海)](http://www.sssloxia.jp/index.html) の宣言ページに、必要に応じてさまざまなプレビューを動的に表示するユーザースクリプトです。
   
 ## 免責事項
 当ユーザースクリプトを使用して生じた問題などに関しまして、一切の責任を負いかねます。  
@@ -18,8 +18,8 @@
 ## インストール方法
 一般的なユーザースクリプトの導入方法に倣います。*[ユーザースクリプトの導入方法(google)](https://www.google.co.jp/search?q=%E3%83%A6%E3%83%BC%E3%82%B6%E3%83%BC%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%97%E3%83%88+%E5%B0%8E%E5%85%A5%E6%96%B9%E6%B3%95&ie=UTF-8)*  
 
-1. Greasemonkey(Firefox)、またはTampermonkey(GoogleChrome他)をブラウザにインストールします*(未導入なら)*。
-2. 次のいずれかをクリックしてからGreasemonkey/Tampermonkeyに従ってください。
+手順1. Greasemonkey(Firefox)、またはTampermonkey(GoogleChrome他)をブラウザにインストールします*(未導入なら)*。  
+手順2. 次のいずれかをクリックしてからGreasemonkey/Tampermonkeyに従ってください。  
   
 * **[通常版](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.user.js)**  
 * **[軽量版(推奨)](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.min.user.js)**
