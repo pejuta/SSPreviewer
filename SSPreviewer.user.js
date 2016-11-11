@@ -1,13 +1,15 @@
 // ==UserScript==
-// @name        SSPreviewer (beta)
+// @name        SSPreviewer
 // @namespace   11powder
 // @author      pejuta
 // @description 七海で色々なプレビューを表示する
 // @include     /^http://www\.sssloxia\.jp/d/.*?(?:\.aspx)(?:\?.+)?$/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
-// @version     0.1.024
-// @grant       none
+// @resource    CSS_STYLE http://pjtool.webcrow.jp/ss/scripts/SSPreviewer/src/css/style.css
+// @version     0.2.000
+// @grant       GM_addStyle
+// @grant       GM_getResourceText
 // ==/UserScript==
 //
 // !!!:第二回更新時に向けてのチェックリスト。現在は暫定的な仕様のため実際の動作と異なる可能性がある
@@ -402,7 +404,7 @@ define("lib/ss/preview/config", ["require", "exports", "lib/ss/preview/templates
     var SSPreview;
     (function (SSPreview) {
         SSPreview.imgBaseURL = null;
-        SSPreview.diary_showsCharCounts = true;
+        SSPreview.showsCharCountsOnDiary = true;
         SSPreview.randomizesDiceTagResult = false;
         // format arg: { imgDir, resultNum }
         SSPreview.diceTagTemplateHTML = null;
@@ -929,7 +931,7 @@ define("lib/ss/preview/diary/model", ["require", "exports", "lib/ss/preview/diar
                 this.showsCharCounts = arg.showsCharCounts;
             }
             else {
-                this.showsCharCounts = Config.SSPreview.diary_showsCharCounts || false;
+                this.showsCharCounts = Config.SSPreview.showsCharCountsOnDiary || false;
             }
         }
         Object.defineProperty(DiaryModel.prototype, "ShowsCharCounts", {
@@ -1414,7 +1416,6 @@ define("lib/ss/preview/packagedPreview", ["require", "exports"], function (requi
 });
 define("lib/ss/preview/diary/package", ["require", "exports", "jquery", "lib/ss/preview/controller", "lib/ss/preview/diary/model", "lib/ss/preview/diary/view"], function (require, exports, $, controller_4, model_11, view_4) {
     "use strict";
-    // import { DiaryController } from "./controller";
     var DiaryPackage = (function () {
         function DiaryPackage(args) {
             this._model = new model_11.DiaryModel(args.model);
@@ -1607,7 +1608,6 @@ define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "l
         function Init() {
             Preview.Config.Preview.previewDelay_ms = 100;
             Preview.Config.SSPreview.randomizesDiceTagResult = true;
-            $("head").append("<style type='text/css'>\n    .clearfix:after {\n        content: \"\";\n        display: block;\n        clear: both;\n    }\n    .separator_or {\n        background-color: rgba(255,255,255,0.25);\n        border-radius: 2px;\n        margin: 4px 0px;\n        text-align: center;\n        vertical-align: middle;\n    }\n    .separator_or:before {\n        content: \"- OR -\";\n    }\n</style>");
             function InitWithSerifPreview(profile, $targetTextBox) {
                 return $targetTextBox.toArray().map(function (e, i) {
                     return new Preview.Package.Serif({
@@ -1653,7 +1653,6 @@ define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "l
                 if (previews.length === 0) {
                     return;
                 }
-                $("head").append("<style type='text/css'>\n        .showOnActive, .active .hideOnActive {\n            display: none;\n        }\n        .active .showOnActive, .hideOnActive {\n            display: inherit;\n        }\n    </style>");
                 var $b = $("<a id='showAllPreviews' class='clearFix' href='#' style='display: block; float: right;'><button type='button' onclick='return false;'>全てのプレビューを<span class='hideOnActive'>表示</span><span class='showOnActive'>隠す</span></button></a>").on("click", function () {
                     $b.toggleClass("active");
                     if ($b.hasClass("active")) {
@@ -1671,7 +1670,6 @@ define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "l
                 $("#char_Button").before("<center class='F1'>↓(Previewer) アイコン・愛称の自動読込↓</center>");
             });
             p.MainPage = new page_1.Page(profile, function (profile) {
-                $("head").append("<style type='text/css'>\n    .char_count_line {\n        text-align: left;\n    }\n    .char_count_cnt {\n        font-size: 12px;\n    }\n    .lf_count_cnt {\n        font-size: 10px;\n    }\n    .char_count_line .char_count_over, .char_count_line .lf_count_over {\n        color: #CC3333;\n        font-weight: bold;\n    }\n    .char_count_line .char_count_over {\n        font-size: 16px;\n    }\n    .char_count_line .lf_count_over {\n        font-size: 14px;\n    }\n</style>");
                 var previews = [];
                 var diaryBox = $("#Diary_TextBox")[0];
                 if (diaryBox) {
@@ -1780,4 +1778,5 @@ define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "l
 });
 (function(){
     require(["SSPreviewer.user"], function(){ });
+    GM_addStyle(GM_getResourceText("CSS_STYLE"));
 })();

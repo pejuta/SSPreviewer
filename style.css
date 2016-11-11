@@ -1,0 +1,47 @@
+@charset "utf-8";
+
+.clearfix:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+.separator_or {
+    background-color: rgba(255,255,255,0.25);
+    border-radius: 2px;
+    margin: 4px 0px;
+    text-align: center;
+    vertical-align: middle;
+}
+.separator_or:before {
+    content: "- OR -";
+}
+
+/* for toggle buttons */
+.showOnActive, .active .hideOnActive {
+    display: none;
+}
+.active .showOnActive, .hideOnActive {
+    display: inherit;
+}
+
+/* for diary preview */
+.char_count_line {
+    text-align: left;
+}
+.char_count_cnt {
+    font-size: 12px;
+}
+.lf_count_cnt {
+    font-size: 10px;
+}
+.char_count_line .char_count_over, .char_count_line .lf_count_over {
+    color: #CC3333;
+    font-weight: bold;
+}
+.char_count_line .char_count_over {
+    font-size: 16px;
+}
+.char_count_line .lf_count_over {
+    font-size: 14px;
+}
