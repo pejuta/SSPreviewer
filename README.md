@@ -16,10 +16,12 @@
 > Google Chrome 53.0.2785.143 m + Tampermonkey 4.1.10  
   
 ## インストール方法
-[一般的なユーザースクリプトの導入方法に従ってください。](https://www.google.co.jp/search?q=%E3%83%A6%E3%83%BC%E3%82%B6%E3%83%BC%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%97%E3%83%88+%E5%B0%8E%E5%85%A5%E6%96%B9%E6%B3%95&ie=UTF-8)  
-SSPreviewer.user.js -> Raw または [こちら](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.user.js) をクリック後、
-Greasemonkey/Tampermonkeyに従ってください。  
-軽量版は [こちら](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.min.user.js)
+一般的なユーザースクリプトの導入方法に倣います。*[ユーザースクリプトの導入方法(google)](https://www.google.co.jp/search?q=%E3%83%A6%E3%83%BC%E3%82%B6%E3%83%BC%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%97%E3%83%88+%E5%B0%8E%E5%85%A5%E6%96%B9%E6%B3%95&ie=UTF-8)*  
+  
+①Greasemonkey(Firefox)、またはTampermonkey(GoogleChrome他)をブラウザにインストールします*(未導入なら)*。
+②次のいずれかをクリックしてからGreasemonkey/Tampermonkeyに従ってください。  
+* **[通常版](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.user.js)**  
+* **[軽量版(推奨)](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.min.user.js)**
   
 ## 使用の準備
 インストールした直後はアイコンURL・キャラクター愛称情報がありませんので、正確なプレビューが出来ません。  
@@ -37,3 +39,6 @@ Greasemonkey/Tampermonkeyに従ってください。
 * メッセージ添付画像プレビュー(第二回更新以降)
 * プレビューのスタイルを最適化
 * 細かい仕様をより本家に合わせる
+  
+# SPECIAL THANKS!!
+* 動作テストに協力してくださった七海プレイヤーの皆さまに心からの感謝を申し上げます。
