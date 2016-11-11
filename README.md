@@ -1,24 +1,30 @@
-# SSPreviewer　*(beta)*
+# SSPreviewer
 [Seven Seas(七海)](http://www.sssloxia.jp/index.html) 宣言ページにさまざまなプレビューを追加するユーザースクリプトです。
-
+  
 ## 免責事項
 当ユーザースクリプトを使用して生じた問題などに関しまして、一切の責任を負いかねます。  
-現在(11/10)第三回更新直前と時間は経っていますが、 今のところ**プレビューが実際の結果と多少異なる場合もございます。**予めご了承ください。
-
+現在(11/11)第三回更新直前と更新から時間は経っていますが、 **プレビューが実際の結果と多少異なる場合もございます。**  
+解消する/される予定ではありますが、予めご了承ください。
+  
+## 機能
+* 入力内容/箇所に応じた種類のプレビューを自動的に表示します。
+* あらかじめ入力済みのセリフ/メッセージなどのプレビューを一気に表示できるボタンが追加されます。
+  
 ## 動作環境
 以下の環境での動作を確認しています。
 > Firefox 49.0.1 + Greasemonkey 3.9  
 > Google Chrome 53.0.2785.143 m + Tampermonkey 4.1.10  
-
+  
 ## インストール方法
+[一般的なユーザースクリプトの導入方法に従ってください。](https://www.google.co.jp/search?q=%E3%83%A6%E3%83%BC%E3%82%B6%E3%83%BC%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%97%E3%83%88+%E5%B0%8E%E5%85%A5%E6%96%B9%E6%B3%95&ie=UTF-8)  
 SSPreviewer.user.js -> Raw または [こちら](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.user.js) をクリック後、
 Greasemonkey/Tampermonkeyに従ってください。  
 軽量版は [こちら](https://github.com/pejuta/SSPreviewer/raw/master/SSPreviewer.min.user.js)
-
+  
 ## 使用の準備
 インストールした直後はアイコンURL・キャラクター愛称情報がありませんので、正確なプレビューが出来ません。  
-取得のためには一度**『キャラクター設定宣言ページ』(http://www.sssloxia.jp/d/chara.aspx)**を開く必要があります。
-
+**『キャラクター設定宣言ページ』(http://www.sssloxia.jp/d/chara.aspx)**を開き必要情報の取得(自動)を行ってください。
+  
 ## 実装済み機能
 * メッセージプレビュー
 * セリフプレビュー
@@ -26,7 +32,7 @@ Greasemonkey/Tampermonkeyに従ってください。
 * パーティ掲示板プレビュー
 * コミュニティ説明プレビュー
 * その他細かいプレビュー
-
+  
 ## TODO:
 * メッセージ添付画像プレビュー(第二回更新以降)
 * プレビューのスタイルを最適化
