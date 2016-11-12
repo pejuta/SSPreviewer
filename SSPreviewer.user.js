@@ -7,7 +7,7 @@
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @resource    CSS_STYLE http://pjtool.webcrow.jp/ss/scripts/SSPreviewer/src/css/style.css
-// @version     0.2.001
+// @version     0.2.002
 // @grant       GM_addStyle
 // @grant       GM_getResourceText
 // ==/UserScript==
@@ -453,6 +453,9 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
                 if (exp.attr.at3Mode === void 0) {
                     enableAt3Mode = this.at3ModeAsDefault;
                 }
+                else if (this.at3ModeAsDefault && exp.attr.changedName === void 0) {
+                    enableAt3Mode = true;
+                }
                 else {
                     enableAt3Mode = exp.attr.at3Mode;
                 }
@@ -524,6 +527,7 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
         };
         // { imgDir, resultNum }
         Formatter._DEFAULT_DICE_TEMPLATE = "<img alt=\"dice\" src=\"{imgDir}d{resultNum}.png\" border=\"0\" height=\"20\" width=\"20\">";
+        // must finish with '/'
         Formatter._DEFAULT_IMG_BASE_URL = "http://www.sssloxia.jp/p/";
         Formatter._DETAULT_SEPARATORS = { and: "", or: "<div class='separator_or'/>" };
         Formatter.reReplace_EscapedDecoTag = new RegExp(htmlEscape.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "g");
@@ -1609,7 +1613,7 @@ define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "l
                     var imageURLBox = $(e).nextUntil("input").last().next()[0];
                     return new Preview.Package.Message({
                         model: { profile: profile },
-                        view: { insert: { target: e, way: Preview.View.InsertWay.InsertAfter } },
+                        view: { insert: { target: imageURLBox, way: Preview.View.InsertWay.InsertAfter } },
                         ctrl: { textbox: e },
                     });
                 });

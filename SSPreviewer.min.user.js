@@ -7,7 +7,7 @@
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @resource    CSS_STYLE http://pjtool.webcrow.jp/ss/scripts/SSPreviewer/src/css/style.css
-// @version     0.2.001
+// @version     0.2.002
 // @grant       GM_addStyle
 // @grant       GM_getResourceText
 // ==/UserScript==
@@ -52,11 +52,11 @@ j.GenerateDiceTag=function(k){if(k===void 0){k=false;}var l=1;if(k){l=Math.floor
 });k=g.lineBreaksToBR(k);k=h.unescape(k,"<BR>","g");return k;};j.prototype.Format=function(k){if(this.allowsOrTag){return this.FormatOrs(d.Parser.ParseOr(k));
 }else{return this.FormatAnds(d.Parser.ParseAnd(k));}};j.prototype.FormatOrs=function(p){var k=[];for(var n=0,m=p.length;n<m;n++){var l=p[n];var o=l.length===1&&([l[0].source.separator,l[0].source.text].join("")==="");
 if(o&&this.htmlWhenOrHTMLIsEmpty!==null){k.push(this.htmlWhenOrHTMLIsEmpty);}else{k.push(this.FormatAnds(p[n]));}}return k.join(this.separators.or);};j.prototype.FormatAnds=function(r){var k=[];
-for(var q=0,o=r.length;q<o;q++){var m=r[q];var t=void 0;if(m.attr.at3Mode===void 0){t=this.at3ModeAsDefault;}else{t=m.attr.at3Mode;}var p=void 0;if(m.attr.changedName===void 0){p=this.profile.nickname;
-}else{p=m.attr.changedName;}var l=void 0;if(m.attr.iconNumber===void 0){l=-1;}else{l=parseInt(m.attr.iconNumber);}var n=this.DefaultIconURL;if(l===-1){n=this.profile.iconURLArray[0]||this.DefaultIconURL;
-}else{n=this.profile.iconURLArray[l]||this.DefaultIconURL;}var s=void 0;if(t){if(l===-1){s=this.template.Body_At3Mode;}else{s=this.template.Body_At3ModeAndIcon;
-}}else{s=this.template.Body;}k.push(e(s,{iconURL:n,name:p,nameColor:this.profile.nameColor,bodyHTML:m.source.text}));}return k.join(this.separators.and);
-};j._DEFAULT_TEMPLATE={Body:'<table class="WordsTable" CELLSPACING=0 CELLPADDING=0><tr><td class="Icon" rowspan="2"><IMG border = 0 alt=Icon align=left src="{iconURL}" width=60 height=60></td><td class="Name"><font color="{nameColor}" class="B">{name}</font></td></tr><tr><td class="Words">\u300C{bodyHTML}\u300D</td></tr></table>',Body_At3ModeAndIcon:'<table class="WordsTable" CELLSPACING=0 CELLPADDING=0><tr><td class="Icon"><IMG border = 0 alt=Icon align=left src="{iconURL}" width=60 height=60></td><td class="String">{bodyHTML}</td></tr></table>',Body_At3Mode:'<table class="WordsTable" CELLSPACING=0 CELLPADDING=0><tr><td class="Icon"/><td class="String">{bodyHTML}</td></tr></table>',Body_WhenOrIsEmpty:'<table class="WordsTable" CELLSPACING=0 CELLPADDING=0><tr><td class="Icon"/><td class="String"><span class=\'I\'>(\u8868\u793A\u306A\u3057)</span></td></tr></table>'};
+for(var q=0,o=r.length;q<o;q++){var m=r[q];var t=void 0;if(m.attr.at3Mode===void 0){t=this.at3ModeAsDefault;}else{if(this.at3ModeAsDefault&&m.attr.changedName===void 0){t=true;
+}else{t=m.attr.at3Mode;}}var p=void 0;if(m.attr.changedName===void 0){p=this.profile.nickname;}else{p=m.attr.changedName;}var l=void 0;if(m.attr.iconNumber===void 0){l=-1;
+}else{l=parseInt(m.attr.iconNumber);}var n=this.DefaultIconURL;if(l===-1){n=this.profile.iconURLArray[0]||this.DefaultIconURL;}else{n=this.profile.iconURLArray[l]||this.DefaultIconURL;
+}var s=void 0;if(t){if(l===-1){s=this.template.Body_At3Mode;}else{s=this.template.Body_At3ModeAndIcon;}}else{s=this.template.Body;}k.push(e(s,{iconURL:n,name:p,nameColor:this.profile.nameColor,bodyHTML:m.source.text}));
+}return k.join(this.separators.and);};j._DEFAULT_TEMPLATE={Body:'<table class="WordsTable" CELLSPACING=0 CELLPADDING=0><tr><td class="Icon" rowspan="2"><IMG border = 0 alt=Icon align=left src="{iconURL}" width=60 height=60></td><td class="Name"><font color="{nameColor}" class="B">{name}</font></td></tr><tr><td class="Words">\u300C{bodyHTML}\u300D</td></tr></table>',Body_At3ModeAndIcon:'<table class="WordsTable" CELLSPACING=0 CELLPADDING=0><tr><td class="Icon"><IMG border = 0 alt=Icon align=left src="{iconURL}" width=60 height=60></td><td class="String">{bodyHTML}</td></tr></table>',Body_At3Mode:'<table class="WordsTable" CELLSPACING=0 CELLPADDING=0><tr><td class="Icon"/><td class="String">{bodyHTML}</td></tr></table>',Body_WhenOrIsEmpty:'<table class="WordsTable" CELLSPACING=0 CELLPADDING=0><tr><td class="Icon"/><td class="String"><span class=\'I\'>(\u8868\u793A\u306A\u3057)</span></td></tr></table>'};
 j._DEFAULT_DICE_TEMPLATE='<img alt="dice" src="{imgDir}d{resultNum}.png" border="0" height="20" width="20">';j._DEFAULT_IMG_BASE_URL="http://www.sssloxia.jp/p/";
 j._DETAULT_SEPARATORS={and:"",or:"<div class='separator_or'/>"};j.reReplace_EscapedDecoTag=new RegExp(h.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"),"g");
 j.reReplace_EscapedDiceTag=new RegExp(h.escape("<D>"),"g");return j;}());c.Formatter=i;});define("lib/interface/disposable",["require","exports"],function(b,a){});
@@ -174,7 +174,7 @@ for(var g=4;;g+=3){var j=g<10?("0"+g):(""+g);var f=document.getElementsByName("c
 if(e===null){return null;}return e.value;};return d;}());a.CharacterSettings=b;});define("lib/ss/pages",["require","exports","lib/ss/pages/characterSettings"],function(b,a,c){a.CharacterSettings=c.CharacterSettings;
 });define("SSPreviewer.user",["require","exports","jquery","lib/ss/profile","lib/ss/page","lib/ss/preview","lib/ss/pages"],function(c,b,g,d,h,f,e){var a;
 (function(i){function j(){f.Config.Preview.previewDelay_ms=100;f.Config.SSPreview.randomizesDiceTagResult=true;function r(u,p){return p.toArray().map(function(w,v){return new f.Package.Serif({model:{profile:u},view:{insert:{target:w,way:f.View.InsertWay.InsertAfter}},ctrl:{textbox:w},});
-});}function s(u,p){return p.toArray().map(function(w,v){var x=g(w).nextUntil("input").last().next()[0];return new f.Package.Message({model:{profile:u},view:{insert:{target:w,way:f.View.InsertWay.InsertAfter}},ctrl:{textbox:w},});
+});}function s(u,p){return p.toArray().map(function(w,v){var x=g(w).nextUntil("input").last().next()[0];return new f.Package.Message({model:{profile:u},view:{insert:{target:x,way:f.View.InsertWay.InsertAfter}},ctrl:{textbox:w},});
 });}function n(p){return r(p,g("textarea"));}function m(p){return s(p,g("textarea"));}function q(v){for(var w=0,u=v;w<u.length;w++){var p=u[w];p.Controller.Update();
 }}function o(u){for(var v=0,p=u;v<p.length;v++){var w=p[v];w.Controller.Hide();}}function t(u){if(u.length===0){return;}var p=g("<a id='showAllPreviews' class='clearFix' href='#' style='display: block; float: right;'><button type='button' onclick='return false;'>全てのプレビューを<span class='hideOnActive'>表示</span><span class='showOnActive'>隠す</span></button></a>").on("click",function(){p.toggleClass("active");
 if(p.hasClass("active")){q(u);}else{o(u);}});g("td.BackMessage2").eq(0).prepend(p);}var k=h.PageConfig;var l=new d.Profile();k.ForAllPages=new h.Page(l,function(p){g("#char_Button").before("<center class='F1'>↓(Previewer) アイコン・愛称の自動読込↓</center>");
