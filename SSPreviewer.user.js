@@ -7,14 +7,10 @@
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @resource    CSS_STYLE http://pjtool.webcrow.jp/ss/scripts/SSPreviewer/src/css/style.css
-// @version     0.2.000
+// @version     0.2.001
 // @grant       GM_addStyle
 // @grant       GM_getResourceText
 // ==/UserScript==
-//
-// !!!:第二回更新時に向けてのチェックリスト。現在は暫定的な仕様のため実際の動作と異なる可能性がある
-// 日記/メッセージ/台詞の正確なフォーマット
-// 改行の変更後の仕様を要確認。
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -245,122 +241,46 @@ define("lib/util/html/tag", ["require", "exports"], function (require, exports) 
 });
 define("lib/ss/expr/parser", ["require", "exports"], function (require, exports) {
     "use strict";
-    var IGroupOr = (function (_super) {
-        __extends(IGroupOr, _super);
-        function IGroupOr() {
-            _super.apply(this, arguments);
-        }
-        return IGroupOr;
-    }(Array));
-    exports.IGroupOr = IGroupOr;
-    var IGroupAnd = (function (_super) {
-        __extends(IGroupAnd, _super);
-        function IGroupAnd() {
-            _super.apply(this, arguments);
-        }
-        return IGroupAnd;
-    }(Array));
-    exports.IGroupAnd = IGroupAnd;
-    var ParsedExpr = (function () {
-        function ParsedExpr(arg) {
-            this.enableAt3Mode = arg.enableAt3Mode;
-            this.iconNumber = arg.iconNumber;
-            this.text = arg.text;
-            this.changedName = arg.hasOwnProperty("changedName") ? arg.changedName : null;
-        }
-        Object.defineProperty(ParsedExpr.prototype, "EnableAt3Mode", {
-            get: function () {
-                return this.enableAt3Mode;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(ParsedExpr.prototype, "Text", {
-            get: function () {
-                return this.text;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(ParsedExpr.prototype, "IconNumber", {
-            get: function () {
-                return this.iconNumber;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(ParsedExpr.prototype, "ChangedName", {
-            get: function () {
-                return this.changedName;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        return ParsedExpr;
-    }());
     var Parser = (function () {
         function Parser() {
         }
-        Parser.Parse = function (source, at3ModeAsDefault, allowsOrTag) {
-            // source: /\d+/,       capture: 5n + [-4:undefined, -3:undefined, -2:iundefined, -1:iconNum  , 0: bodyText]
-            // source: @@@,         capture: 5n + [-4:@@@,       -3:undefined, -2:undefined,  -1:undefined, 0: bodyText]
-            // source: @@@/\d+/,    capture: 5n + [-4:@@@,       -3:undefined, -2:iconNum,    -1:undefined, 0: bodyText]
-            // source: @name@,      capture: 5n + [-4:@name@,    -3:name,      -2:undefined,  -1:undefined, 0: bodyText]
-            // source: @name@/\d+/, capture: 5n + [-4:@name@,    -3:name,      -2:iconNum,    -1:undefined, 0: bodyText]
-            var defaultIconNumber = at3ModeAsDefault ? -1 : 0;
-            var orSources;
-            if (allowsOrTag) {
-                orSources = source.split("###");
+        Parser.ParseAnd = function (source) {
+            var splt = source.split(/((@@@|@((?![^<@]*\/\d+\/)[^<@]+)@)(?:\/(\d+)\/)?|\/(\d+)\/)/g);
+            var firstDefault = { source: { text: splt[0] }, attr: {} };
+            if (splt.length === 1) {
+                return [firstDefault];
             }
-            else {
-                orSources = [source];
-            }
-            var ors = [];
-            for (var oi = 0, oiEnd = orSources.length; oi < oiEnd; oi++) {
-                // @name@周りの正規表現が複雑なのはname部分にアイコンタグ/\d+/を入れ子にされるのを防止するため。
-                // /1/を先にsplitしてから@@@をsplitするように、二段階で処理する方法よりこっちの方が変更実装が楽だった。
-                // これ以上手を加える場合は正規表現を簡単にして段階式にsplitする方法を採用すべき
-                var andSources = orSources[oi].split(/(?:(@@@|@((?![^<@]*\/\d+\/)[^<@]+)@)(?:\/(\d+)\/)?|\/(\d+)\/)/g);
-                if (andSources.length === 1) {
-                    ors.push([new ParsedExpr({ enableAt3Mode: at3ModeAsDefault, iconNumber: defaultIconNumber, text: orSources[oi] })]);
+            var ands = [];
+            for (var si = 0, aiEnd = splt.length; si < aiEnd; si += 6) {
+                if (si === 0) {
+                    if (splt[0] !== "") {
+                        ands.push(firstDefault);
+                    }
                     continue;
                 }
-                var ands = [];
-                for (var ai = 0, aiEnd = andSources.length; ai < aiEnd; ai += 5) {
-                    var text = andSources[ai];
-                    if (ai === 0) {
-                        if (text !== "") {
-                            ands.push(new ParsedExpr({ enableAt3Mode: at3ModeAsDefault, iconNumber: defaultIconNumber, text: andSources[ai] }));
-                        }
-                        continue;
-                    }
-                    var changedName = null;
-                    var enableAt3Mode = at3ModeAsDefault;
-                    var strIconNumber = void 0;
-                    if (andSources[ai - 4] === undefined) {
-                        // /\d/
-                        strIconNumber = andSources[ai - 1];
-                    }
-                    else if (andSources[ai - 4] === "@@@") {
-                        // @@@ or @@@/\d/
-                        strIconNumber = andSources[ai - 2];
-                        enableAt3Mode = true;
-                    }
-                    else {
-                        // @changedName@ or @changedName@/\d/
-                        strIconNumber = andSources[ai - 2];
-                        changedName = andSources[ai - 3];
-                        enableAt3Mode = false;
-                    }
-                    var iconNumber = enableAt3Mode ? -1 : 0;
-                    if (strIconNumber !== undefined) {
-                        iconNumber = parseInt(strIconNumber);
-                    }
-                    ands.push(new ParsedExpr({
-                        enableAt3Mode: enableAt3Mode, changedName: changedName, iconNumber: iconNumber, text: text
-                    }));
+                var match = splt.slice(si - 5, si + 1);
+                var at3Mode = match[1] === "@@@";
+                var changedName = match[2];
+                var iconNumber = void 0;
+                if (match[3] !== void 0) {
+                    iconNumber = match[3];
                 }
-                ors.push(ands);
+                else if (match[4] !== void 0) {
+                    iconNumber = match[4];
+                }
+                var text = match[5];
+                var separator = match[0];
+                var attr = { at3Mode: at3Mode, changedName: changedName, iconNumber: iconNumber };
+                var source_1 = { text: text, separator: separator };
+                ands.push({ source: source_1, attr: attr });
+            }
+            return ands;
+        };
+        Parser.ParseOr = function (source) {
+            var splt = source.split("###");
+            var ors = [];
+            for (var si = 0, oiEnd = splt.length; si < oiEnd; si++) {
+                ors.push(Parser.ParseAnd(splt[si]));
             }
             return ors;
         };
@@ -422,6 +342,12 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
                 and: args.separators.and || Formatter._DETAULT_SEPARATORS.and,
                 or: args.separators.or || Formatter._DETAULT_SEPARATORS.or
             } : Object.create(Formatter._DETAULT_SEPARATORS);
+            if (args.htmlWhenOrHTMLIsEmpty === void 0 || args.htmlWhenOrHTMLIsEmpty === null) {
+                this.htmlWhenOrHTMLIsEmpty = Formatter._DEFAULT_TEMPLATE.Body_WhenOrIsEmpty;
+            }
+            else {
+                this.htmlWhenOrHTMLIsEmpty = args.htmlWhenOrHTMLIsEmpty;
+            }
         }
         Object.defineProperty(Formatter.prototype, "Profile", {
             get: function () {
@@ -459,6 +385,20 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(Formatter.prototype, "HTMLWhenOrHTMLIsEmpty", {
+            get: function () {
+                return this.htmlWhenOrHTMLIsEmpty;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Formatter.prototype, "DefaultIconURL", {
+            get: function () {
+                return ((Config.SSPreview.imgBaseURL || Formatter._DEFAULT_IMG_BASE_URL) + "default.jpg");
+            },
+            enumerable: true,
+            configurable: true
+        });
         Formatter.GenerateDiceTag = function (randomize) {
             if (randomize === void 0) { randomize = false; }
             var resultNum = 1;
@@ -473,7 +413,7 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
             // 2: replace Deco-tags
             html = replaceLoop(html, Formatter.reReplace_EscapedDecoTag, "<span class='$1'>$2</span>");
             // 3: parse and format
-            html = this.Format(parser_1.Parser.Parse(html, this.at3ModeAsDefault, this.allowsOrTag));
+            html = this.Format(html);
             // 4: dice
             html = html.replace(Formatter.reReplace_EscapedDiceTag, function (match) {
                 return Formatter.GenerateDiceTag(Config.SSPreview.randomizesDiceTagResult);
@@ -483,31 +423,75 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
             html = htmlEscape.unescape(html, "<BR>", "g");
             return html;
         };
-        Formatter.prototype.Format = function (exps) {
-            var _this = this;
-            return exps.map(function (and, oi, a) {
-                return and.map(function (exp, ai, a) {
-                    var template;
-                    if (exp.EnableAt3Mode) {
-                        if (exp.IconNumber === -1) {
-                            template = _this.template.Body_At3Mode;
-                        }
-                        else {
-                            template = _this.template.Body_At3ModeAndIcon;
-                        }
+        Formatter.prototype.Format = function (source) {
+            if (this.allowsOrTag) {
+                return this.FormatOrs(parser_1.Parser.ParseOr(source));
+            }
+            else {
+                return this.FormatAnds(parser_1.Parser.ParseAnd(source));
+            }
+        };
+        Formatter.prototype.FormatOrs = function (ors) {
+            var orHTMLs = [];
+            for (var or = 0, orEnd = ors.length; or < orEnd; or++) {
+                var ands = ors[or];
+                var isEmpty = ands.length === 1 && ([ands[0].source.separator, ands[0].source.text].join("") === "");
+                if (isEmpty && this.htmlWhenOrHTMLIsEmpty !== null) {
+                    orHTMLs.push(this.htmlWhenOrHTMLIsEmpty);
+                }
+                else {
+                    orHTMLs.push(this.FormatAnds(ors[or]));
+                }
+            }
+            return orHTMLs.join(this.separators.or);
+        };
+        Formatter.prototype.FormatAnds = function (ands) {
+            var andHTMLs = [];
+            for (var ai = 0, aiEnd = ands.length; ai < aiEnd; ai++) {
+                var exp = ands[ai];
+                var enableAt3Mode = void 0;
+                if (exp.attr.at3Mode === void 0) {
+                    enableAt3Mode = this.at3ModeAsDefault;
+                }
+                else {
+                    enableAt3Mode = exp.attr.at3Mode;
+                }
+                var name_1 = void 0;
+                if (exp.attr.changedName === void 0) {
+                    name_1 = this.profile.nickname;
+                }
+                else {
+                    name_1 = exp.attr.changedName;
+                }
+                var iconNumber = void 0;
+                if (exp.attr.iconNumber === void 0) {
+                    iconNumber = -1;
+                }
+                else {
+                    iconNumber = parseInt(exp.attr.iconNumber);
+                }
+                var iconURL = this.DefaultIconURL;
+                if (iconNumber === -1) {
+                    iconURL = this.profile.iconURLArray[0] || this.DefaultIconURL;
+                }
+                else {
+                    iconURL = this.profile.iconURLArray[iconNumber] || this.DefaultIconURL;
+                }
+                var template = void 0;
+                if (enableAt3Mode) {
+                    if (iconNumber === -1) {
+                        template = this.template.Body_At3Mode;
                     }
                     else {
-                        template = _this.template.Body;
+                        template = this.template.Body_At3ModeAndIcon;
                     }
-                    var iconURL = "";
-                    if (exp.IconNumber !== -1) {
-                        iconURL = _this.profile.iconURLArray[exp.IconNumber] || ((Config.SSPreview.imgBaseURL || Formatter._DEFAULT_IMG_BASE_URL) + "default.jpg");
-                    }
-                    var name = exp.ChangedName === null ? _this.profile.nickname : exp.ChangedName;
-                    var bodyHTML = exp.Text;
-                    return format(template, { iconURL: iconURL, name: name, nameColor: _this.profile.nameColor, bodyHTML: bodyHTML });
-                }).join(_this.separators.and);
-            }).join(this.separators.or);
+                }
+                else {
+                    template = this.template.Body;
+                }
+                andHTMLs.push(format(template, { iconURL: iconURL, name: name_1, nameColor: this.profile.nameColor, bodyHTML: exp.source.text }));
+            }
+            return andHTMLs.join(this.separators.and);
         };
         //     public static _DEFAULT_TEMPLATE: IFormatTemplate = {
         //         Body:
@@ -535,7 +519,8 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
         Formatter._DEFAULT_TEMPLATE = {
             Body: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\" rowspan=\"2\"><IMG border = 0 alt=Icon align=left src=\"{iconURL}\" width=60 height=60></td><td class=\"Name\"><font color=\"{nameColor}\" class=\"B\">{name}</font></td></tr><tr><td class=\"Words\">\u300C{bodyHTML}\u300D</td></tr></table>",
             Body_At3ModeAndIcon: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"><IMG border = 0 alt=Icon align=left src=\"{iconURL}\" width=60 height=60></td><td class=\"String\">{bodyHTML}</td></tr></table>",
-            Body_At3Mode: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"/><td class=\"String\">{bodyHTML}</td></tr></table>"
+            Body_At3Mode: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"/><td class=\"String\">{bodyHTML}</td></tr></table>",
+            Body_WhenOrIsEmpty: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"/><td class=\"String\"><span class='I'>(\u8868\u793A\u306A\u3057)</span></td></tr></table>"
         };
         // { imgDir, resultNum }
         Formatter._DEFAULT_DICE_TEMPLATE = "<img alt=\"dice\" src=\"{imgDir}d{resultNum}.png\" border=\"0\" height=\"20\" width=\"20\">";
@@ -1559,9 +1544,10 @@ define("lib/ss/preview/packages", ["require", "exports", "lib/ss/preview/diary/p
     exports.PartyBBS = package_3.PartyBBSPackage;
     exports.Serif = package_4.SerifPackage;
 });
-define("lib/ss/preview", ["require", "exports", "lib/ss/preview/models", "lib/ss/preview/views", "lib/ss/preview/controllers", "lib/ss/preview/packages", "lib/ss/preview/config", "lib/ss/profile"], function (require, exports, Model, View, Controller, Package, Config, Profile) {
+define("lib/ss/preview", ["require", "exports", "lib/ss/preview/models", "lib/ss/preview/model_formatter", "lib/ss/preview/views", "lib/ss/preview/controllers", "lib/ss/preview/packages", "lib/ss/preview/config", "lib/ss/profile"], function (require, exports, Model, Formatter, View, Controller, Package, Config, Profile) {
     "use strict";
     exports.Model = Model;
+    exports.Formatter = Formatter;
     exports.View = View;
     exports.Controller = Controller;
     exports.Package = Package;
