@@ -7,7 +7,7 @@
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @resource    CSS_STYLE http://pjtool.webcrow.jp/ss/scripts/SSPreviewer/src/css/style.css
-// @version     0.2.002
+// @version     0.2.003
 // @grant       GM_addStyle
 // @grant       GM_getResourceText
 // ==/UserScript==
@@ -170,7 +170,7 @@ Object.defineProperty(h.prototype,"Controller",{get:function(){return this._ctrl
 define("lib/ss/preview/packages",["require","exports","lib/ss/preview/diary/package","lib/ss/preview/message/package","lib/ss/preview/partyBBS/package","lib/ss/preview/serif/package"],function(e,c,f,d,b,a){c.Diary=f.DiaryPackage;
 c.Message=d.MessagePackage;c.PartyBBS=b.PartyBBSPackage;c.Serif=a.SerifPackage;});define("lib/ss/preview",["require","exports","lib/ss/preview/models","lib/ss/preview/model_formatter","lib/ss/preview/views","lib/ss/preview/controllers","lib/ss/preview/packages","lib/ss/preview/config","lib/ss/profile"],function(d,f,c,i,a,e,g,b,h){f.Model=c;
 f.Formatter=i;f.View=a;f.Controller=e;f.Package=g;f.Config=b;f.Profile=h;});define("lib/ss/pages/characterSettings",["require","exports"],function(c,a){var b=(function(){function d(){}d.ExtractIconUrlArray=function(){var e=[];
-for(var g=4;;g+=3){var j=g<10?("0"+g):(""+g);var f=document.getElementsByName("ctl"+j);if(f.length===0){return e;}var h=(f[0]);e.push(h.value);}};d.ExtractNickname=function(){var e=document.getElementById("TextBox2");
+for(var g=6;;g+=3){var j=g<10?("0"+g):(""+g);var f=document.getElementsByName("ctl"+j);if(f.length===0){return e;}var h=(f[0]);e.push(h.value);}};d.ExtractNickname=function(){var e=document.getElementById("TextBox2");
 if(e===null){return null;}return e.value;};return d;}());a.CharacterSettings=b;});define("lib/ss/pages",["require","exports","lib/ss/pages/characterSettings"],function(b,a,c){a.CharacterSettings=c.CharacterSettings;
 });define("SSPreviewer.user",["require","exports","jquery","lib/ss/profile","lib/ss/page","lib/ss/preview","lib/ss/pages"],function(c,b,g,d,h,f,e){var a;
 (function(i){function j(){f.Config.Preview.previewDelay_ms=100;f.Config.SSPreview.randomizesDiceTagResult=true;function r(u,p){return p.toArray().map(function(w,v){return new f.Package.Serif({model:{profile:u},view:{insert:{target:w,way:f.View.InsertWay.InsertAfter}},ctrl:{textbox:w},});

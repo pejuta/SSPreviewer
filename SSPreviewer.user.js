@@ -7,7 +7,7 @@
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @resource    CSS_STYLE http://pjtool.webcrow.jp/ss/scripts/SSPreviewer/src/css/style.css
-// @version     0.2.002
+// @version     0.2.003
 // @grant       GM_addStyle
 // @grant       GM_getResourceText
 // ==/UserScript==
@@ -1565,7 +1565,7 @@ define("lib/ss/pages/characterSettings", ["require", "exports"], function (requi
         }
         CharacterSettings.ExtractIconUrlArray = function () {
             var a = [];
-            for (var i = 4;; i += 3) {
+            for (var i = 6;; i += 3) {
                 var strNum = i < 10 ? ("0" + i) : ("" + i);
                 var nodes = document.getElementsByName("ctl" + strNum);
                 if (nodes.length === 0) {
