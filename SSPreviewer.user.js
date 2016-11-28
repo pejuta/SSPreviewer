@@ -7,7 +7,7 @@
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @resource    CSS_STYLE http://pjtool.webcrow.jp/ss/scripts/SSPreviewer/src/css/style.css
-// @version     0.2.003
+// @version     0.2.005
 // @grant       GM_addStyle
 // @grant       GM_getResourceText
 // ==/UserScript==
@@ -259,7 +259,7 @@ define("lib/ss/expr/parser", ["require", "exports"], function (require, exports)
                     continue;
                 }
                 var match = splt.slice(si - 5, si + 1);
-                var at3Mode = match[1] === "@@@";
+                var stringMode = match[1] === "@@@";
                 var changedName = match[2];
                 var iconNumber = void 0;
                 if (match[3] !== void 0) {
@@ -270,7 +270,7 @@ define("lib/ss/expr/parser", ["require", "exports"], function (require, exports)
                 }
                 var text = match[5];
                 var separator = match[0];
-                var attr = { at3Mode: at3Mode, changedName: changedName, iconNumber: iconNumber };
+                var attr = { stringMode: stringMode, changedName: changedName, iconNumber: iconNumber };
                 var source_1 = { text: text, separator: separator };
                 ands.push({ source: source_1, attr: attr });
             }
@@ -302,15 +302,17 @@ define("lib/preview/model_formatter", ["require", "exports"], function (require,
 });
 define("lib/ss/preview/templates", ["require", "exports"], function (require, exports) {
     "use strict";
-    // 注意: 変更したい場合はコントローラー(から呼ばれるformatter)のコンストラクタが呼ばれる前に設定すること。
-    var Preview;
-    (function (Preview) {
-        Preview.Diary = null;
-        Preview.DiaryCharCountsHTML = null;
-        Preview.Message = null;
-        Preview.PartyBBS = null;
-        Preview.Serif = null;
-    })(Preview = exports.Preview || (exports.Preview = {}));
+    // 注意: I**Templateを変更したい場合はコントローラー(から呼ばれるformatter)のコンストラクタが呼ばれる前に設定すること。
+    // format arg: { imgDir, resultNum }
+    exports.diceTagTemplateHTML = null;
+    exports.defaultTemplate = null;
+    exports.defaultSeparator = null;
+    exports.diary = null;
+    // format arg: { charCount, charCountMax, lfCount, lfCountMax }
+    exports.diaryCharCountsHTML = null;
+    exports.message = null;
+    exports.partyBBS = null;
+    exports.serif = null;
 });
 define("lib/preview/config", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -326,104 +328,134 @@ define("lib/ss/preview/config", ["require", "exports", "lib/ss/preview/templates
         SSPreview.imgBaseURL = null;
         SSPreview.showsCharCountsOnDiary = true;
         SSPreview.randomizesDiceTagResult = false;
-        // format arg: { imgDir, resultNum }
-        SSPreview.diceTagTemplateHTML = null;
     })(SSPreview = exports.SSPreview || (exports.SSPreview = {}));
 });
 define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string/format", "lib/util/string/replaceLoop", "lib/util/html/escape", "lib/util/html/tag", "lib/ss/expr/parser", "lib/ss/preview/config"], function (require, exports, format, replaceLoop, htmlEscape, tag_1, parser_1, Config) {
     "use strict";
-    var Formatter = (function () {
-        function Formatter(args) {
-            this.profile = args.profile;
-            this.at3ModeAsDefault = args.at3ModeAsDefault || false;
-            this.allowsOrTag = args.allowsOrTag || false;
-            this.template = args.template || Object.create(Formatter._DEFAULT_TEMPLATE);
-            this.separators = args.separators ? {
-                and: args.separators.and || Formatter._DETAULT_SEPARATORS.and,
-                or: args.separators.or || Formatter._DETAULT_SEPARATORS.or
-            } : Object.create(Formatter._DETAULT_SEPARATORS);
-            if (args.htmlWhenOrHTMLIsEmpty === void 0 || args.htmlWhenOrHTMLIsEmpty === null) {
-                this.htmlWhenOrHTMLIsEmpty = Formatter._DEFAULT_TEMPLATE.Body_WhenOrIsEmpty;
+    var Template = (function () {
+        function Template() {
+        }
+        Template.removeIndents = function (source) {
+            return source.replace(/^[\t ]+/gm, "");
+        };
+        Template.removeLineBreaks = function (source) {
+            return source.replace(/\r\n|\r|\n/g, "");
+        };
+        Template.Normalize = function (arg) {
+            var f = {};
+            for (var prop in arg) {
+                var v = arg[prop];
+                if (typeof v === "string") {
+                    f[prop] = this.removeLineBreaks(this.removeIndents(v));
+                }
+            }
+            return f;
+        };
+        return Template;
+    }());
+    var SSFormatter = (function () {
+        function SSFormatter(args) {
+            this.reReplace_EscapedDecoTag = new RegExp(htmlEscape.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "g");
+            this.reReplace_EscapedDiceTag = new RegExp(htmlEscape.escape("<D>"), "g");
+            this.Profile = args.profile;
+            this.StringModeAsDefault = args.stringModeAsDefault || false;
+            this.AllowsOrTag = args.allowsOrTag || false;
+            this.setIcon0AsDefaultWithNameTags = args.setIcon0AsDefaultWithNameTags || false;
+            this.Template = args.template || Config.Templates.defaultTemplate || SSFormatter._DEFAULT_TEMPLATE;
+            var defaultSeparator = Config.Templates.defaultSeparator || SSFormatter._DETAULT_SEPARATORS;
+            if (args.separators) {
+                this.Separators = {
+                    and: (args.separators.and === void 0 || args.separators.and === null) ? defaultSeparator.and : args.separators.and,
+                    or: (args.separators.or === void 0 || args.separators.or === null) ? defaultSeparator.or : args.separators.or
+                };
             }
             else {
-                this.htmlWhenOrHTMLIsEmpty = args.htmlWhenOrHTMLIsEmpty;
+                this.Separators = defaultSeparator;
+            }
+            if (args.htmlEmptyOrBlock === void 0 || args.htmlEmptyOrBlock === null) {
+                this.htmlEmptyOrBlock = SSFormatter._DEFAULT_TEMPLATE.Body_WhenOrIsEmpty;
+            }
+            else {
+                this.htmlEmptyOrBlock = args.htmlEmptyOrBlock;
             }
         }
-        Object.defineProperty(Formatter.prototype, "Profile", {
+        Object.defineProperty(SSFormatter.prototype, "Profile", {
             get: function () {
                 return this.profile;
             },
+            set: function (p) {
+                this.profile = p;
+            },
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(Formatter.prototype, "Templates", {
+        Object.defineProperty(SSFormatter.prototype, "Template", {
             get: function () {
                 return this.template;
             },
+            set: function (t) {
+                this.template = Template.Normalize(t);
+            },
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(Formatter.prototype, "Separators", {
+        Object.defineProperty(SSFormatter.prototype, "Separators", {
             get: function () {
                 return this.separators;
             },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Formatter.prototype, "At3ModeAsDefault", {
-            // 名前の通りデフォルトで@@@タグモードを有効にするかどうか。
-            get: function () {
-                return this.at3ModeAsDefault;
+            set: function (s) {
+                this.separators = Template.Normalize(s);
             },
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(Formatter.prototype, "AllowsOrTag", {
+        Object.defineProperty(SSFormatter.prototype, "StringModeAsDefault", {
+            get: function () {
+                return this.stringModeAsDefault;
+            },
+            set: function (f) {
+                this.stringModeAsDefault = f;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(SSFormatter.prototype, "AllowsOrTag", {
             get: function () {
                 return this.allowsOrTag;
             },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Formatter.prototype, "HTMLWhenOrHTMLIsEmpty", {
-            get: function () {
-                return this.htmlWhenOrHTMLIsEmpty;
+            set: function (f) {
+                this.allowsOrTag = f;
             },
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(Formatter.prototype, "DefaultIconURL", {
+        Object.defineProperty(SSFormatter.prototype, "HTMLEmptyOrBlock", {
             get: function () {
-                return ((Config.SSPreview.imgBaseURL || Formatter._DEFAULT_IMG_BASE_URL) + "default.jpg");
+                return this.htmlEmptyOrBlock;
+            },
+            set: function (h) {
+                this.htmlEmptyOrBlock = h;
             },
             enumerable: true,
             configurable: true
         });
-        Formatter.GenerateDiceTag = function (randomize) {
-            if (randomize === void 0) { randomize = false; }
-            var resultNum = 1;
-            if (randomize) {
-                resultNum = Math.floor(Math.random() * 6) + 1;
-            }
-            return format(Config.SSPreview.diceTagTemplateHTML || Formatter._DEFAULT_DICE_TEMPLATE, { imgDir: Config.SSPreview.imgBaseURL || Formatter._DEFAULT_IMG_BASE_URL, resultNum: resultNum });
-        };
-        Formatter.prototype.Exec = function (source) {
+        SSFormatter.prototype.Exec = function (source) {
             // 1: escape
             var html = htmlEscape.escape(source);
             // 2: replace Deco-tags
-            html = replaceLoop(html, Formatter.reReplace_EscapedDecoTag, "<span class='$1'>$2</span>");
+            html = replaceLoop(html, this.reReplace_EscapedDecoTag, "<span class='$1'>$2</span>");
             // 3: parse and format
             html = this.Format(html);
             // 4: dice
-            html = html.replace(Formatter.reReplace_EscapedDiceTag, function (match) {
-                return Formatter.GenerateDiceTag(Config.SSPreview.randomizesDiceTagResult);
+            html = html.replace(this.reReplace_EscapedDiceTag, function (match) {
+                return SSFormatter.GenerateDiceTag(Config.SSPreview.randomizesDiceTagResult);
             });
             // 5: BR
             html = tag_1.lineBreaksToBR(html);
             html = htmlEscape.unescape(html, "<BR>", "g");
             return html;
         };
-        Formatter.prototype.Format = function (source) {
+        SSFormatter.prototype.Format = function (source) {
             if (this.allowsOrTag) {
                 return this.FormatOrs(parser_1.Parser.ParseOr(source));
             }
@@ -431,13 +463,13 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
                 return this.FormatAnds(parser_1.Parser.ParseAnd(source));
             }
         };
-        Formatter.prototype.FormatOrs = function (ors) {
+        SSFormatter.prototype.FormatOrs = function (ors) {
             var orHTMLs = [];
             for (var or = 0, orEnd = ors.length; or < orEnd; or++) {
                 var ands = ors[or];
                 var isEmpty = ands.length === 1 && ([ands[0].source.separator, ands[0].source.text].join("") === "");
-                if (isEmpty && this.htmlWhenOrHTMLIsEmpty !== null) {
-                    orHTMLs.push(this.htmlWhenOrHTMLIsEmpty);
+                if (isEmpty && this.htmlEmptyOrBlock !== null) {
+                    orHTMLs.push(this.htmlEmptyOrBlock);
                 }
                 else {
                     orHTMLs.push(this.FormatAnds(ors[or]));
@@ -445,19 +477,20 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
             }
             return orHTMLs.join(this.separators.or);
         };
-        Formatter.prototype.FormatAnds = function (ands) {
+        SSFormatter.prototype.FormatAnds = function (ands) {
             var andHTMLs = [];
+            var defaultIconURL = SSFormatter.DefaultIconURL();
             for (var ai = 0, aiEnd = ands.length; ai < aiEnd; ai++) {
                 var exp = ands[ai];
-                var enableAt3Mode = void 0;
-                if (exp.attr.at3Mode === void 0) {
-                    enableAt3Mode = this.at3ModeAsDefault;
+                var enableStringMode = void 0;
+                if (exp.attr.stringMode === void 0) {
+                    enableStringMode = this.stringModeAsDefault;
                 }
-                else if (this.at3ModeAsDefault && exp.attr.changedName === void 0) {
-                    enableAt3Mode = true;
+                else if (this.stringModeAsDefault && exp.attr.changedName === void 0) {
+                    enableStringMode = true;
                 }
                 else {
-                    enableAt3Mode = exp.attr.at3Mode;
+                    enableStringMode = exp.attr.stringMode;
                 }
                 var name_1 = void 0;
                 if (exp.attr.changedName === void 0) {
@@ -473,68 +506,79 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
                 else {
                     iconNumber = parseInt(exp.attr.iconNumber);
                 }
-                var iconURL = this.DefaultIconURL;
+                var iconURL = void 0;
                 if (iconNumber === -1) {
-                    iconURL = this.profile.iconURLArray[0] || this.DefaultIconURL;
+                    if (this.setIcon0AsDefaultWithNameTags || !exp.source.separator) {
+                        iconURL = this.profile.iconURLArray[0];
+                    }
                 }
                 else {
-                    iconURL = this.profile.iconURLArray[iconNumber] || this.DefaultIconURL;
+                    iconURL = this.profile.iconURLArray[iconNumber];
+                }
+                if (!iconURL) {
+                    iconURL = defaultIconURL;
+                }
+                var bodyHTML = void 0;
+                var endBreaks = void 0;
+                if (enableStringMode) {
+                    bodyHTML = exp.source.text;
+                    endBreaks = "";
+                }
+                else {
+                    var t = SSFormatter.takeLineBreaksFromEnd(exp.source.text);
+                    bodyHTML = t.text;
+                    endBreaks = t.breaks || "";
                 }
                 var template = void 0;
-                if (enableAt3Mode) {
+                if (enableStringMode) {
                     if (iconNumber === -1) {
-                        template = this.template.Body_At3Mode;
+                        template = this.template.Body_StringMode;
                     }
                     else {
-                        template = this.template.Body_At3ModeAndIcon;
+                        template = this.template.Body_StringModeAndIcon;
                     }
                 }
                 else {
-                    template = this.template.Body;
+                    template = this.template.Body_WordsMode;
                 }
-                andHTMLs.push(format(template, { iconURL: iconURL, name: name_1, nameColor: this.profile.nameColor, bodyHTML: exp.source.text }));
+                andHTMLs.push(format(template, { iconURL: iconURL, name: name_1, nameColor: this.profile.nameColor, bodyHTML: bodyHTML, endBreaks: endBreaks }));
             }
             return andHTMLs.join(this.separators.and);
         };
-        //     public static _DEFAULT_TEMPLATE: IFormatTemplate = {
-        //         Body:
-        // `<table class="WordsTable" CELLSPACING=0 CELLPADDING=0>
-        //     <tr>
-        //         <td class="Icon" rowspan="2"><IMG border = 0 alt=Icon align=left src="{iconURL}" width=60 height=60></td>
-        //         <td class="Name"><font color="{nameColor}" class="B">{name}</font></td>
-        //     </tr>
-        //     <tr>
-        //         <td class="Words">「{bodyHTML}」</td>
-        //     </tr>
-        // </table>`,
-        //         Body_At3ModeAndIcon:
-        // `<table class="WordsTable" CELLSPACING=0 CELLPADDING=0><tr>
-        //     <td class="Icon"><IMG border = 0 alt=Icon align=left src="{iconURL}" width=60 height=60></td>
-        //     <td class="String">{bodyHTML}</td>
-        // </tr></table>`,
-        //         Body_At3Mode:
-        // `<table class="WordsTable" CELLSPACING=0 CELLPADDING=0><tr>
-        //     <td class="Icon"/>
-        //     <td class="String">{bodyHTML}</td>
-        // </tr></table>`
-        //     };
-        // 改行を入れるとフォーマットの時に酷いことになった。上がその残骸
-        Formatter._DEFAULT_TEMPLATE = {
-            Body: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\" rowspan=\"2\"><IMG border = 0 alt=Icon align=left src=\"{iconURL}\" width=60 height=60></td><td class=\"Name\"><font color=\"{nameColor}\" class=\"B\">{name}</font></td></tr><tr><td class=\"Words\">\u300C{bodyHTML}\u300D</td></tr></table>",
-            Body_At3ModeAndIcon: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"><IMG border = 0 alt=Icon align=left src=\"{iconURL}\" width=60 height=60></td><td class=\"String\">{bodyHTML}</td></tr></table>",
-            Body_At3Mode: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"/><td class=\"String\">{bodyHTML}</td></tr></table>",
+        SSFormatter.DefaultIconURL = function () {
+            return ((Config.SSPreview.imgBaseURL || SSFormatter._DEFAULT_IMG_BASE_URL) + "default.jpg");
+        };
+        SSFormatter.GenerateDiceTag = function (randomize) {
+            if (randomize === void 0) { randomize = false; }
+            var resultNum = 1;
+            if (randomize) {
+                resultNum = Math.floor(Math.random() * 6) + 1;
+            }
+            return format(Config.Templates.diceTagTemplateHTML || SSFormatter._DEFAULT_DICE_TEMPLATE, { imgDir: Config.SSPreview.imgBaseURL || SSFormatter._DEFAULT_IMG_BASE_URL, resultNum: resultNum });
+        };
+        SSFormatter.takeLineBreaksFromEnd = function (source) {
+            var m = /\n+$/.exec(source);
+            if (!m) {
+                return { text: source };
+            }
+            var breaks = m[0];
+            var text = source.slice(0, -(breaks.length));
+            return { text: text, breaks: breaks };
+        };
+        SSFormatter._DEFAULT_TEMPLATE = {
+            Body_WordsMode: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\" rowspan=\"2\"><IMG border = 0 alt=Icon align=left src=\"{iconURL}\" width=60 height=60></td><td class=\"Name\"><font color=\"{nameColor}\" class=\"B\">{name}</font></td></tr><tr><td class=\"Words\">\u300C{bodyHTML}\u300D{endBreaks}</td></tr></table>",
+            Body_StringModeAndIcon: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"><IMG border = 0 alt=Icon align=left src=\"{iconURL}\" width=60 height=60></td><td class=\"String\">{bodyHTML}</td></tr></table>",
+            Body_StringMode: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"/><td class=\"String\">{bodyHTML}</td></tr></table>",
             Body_WhenOrIsEmpty: "<table class=\"WordsTable\" CELLSPACING=0 CELLPADDING=0><tr><td class=\"Icon\"/><td class=\"String\"><span class='I'>(\u8868\u793A\u306A\u3057)</span></td></tr></table>"
         };
         // { imgDir, resultNum }
-        Formatter._DEFAULT_DICE_TEMPLATE = "<img alt=\"dice\" src=\"{imgDir}d{resultNum}.png\" border=\"0\" height=\"20\" width=\"20\">";
+        SSFormatter._DEFAULT_DICE_TEMPLATE = "<img alt=\"dice\" src=\"{imgDir}d{resultNum}.png\" border=\"0\" height=\"20\" width=\"20\">";
         // must finish with '/'
-        Formatter._DEFAULT_IMG_BASE_URL = "http://www.sssloxia.jp/p/";
-        Formatter._DETAULT_SEPARATORS = { and: "", or: "<div class='separator_or'/>" };
-        Formatter.reReplace_EscapedDecoTag = new RegExp(htmlEscape.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "g");
-        Formatter.reReplace_EscapedDiceTag = new RegExp(htmlEscape.escape("<D>"), "g");
-        return Formatter;
+        SSFormatter._DEFAULT_IMG_BASE_URL = "http://www.sssloxia.jp/p/";
+        SSFormatter._DETAULT_SEPARATORS = { and: "", or: "<div class='separator_or'/>" };
+        return SSFormatter;
     }());
-    exports.Formatter = Formatter;
+    exports.SSFormatter = SSFormatter;
 });
 define("lib/interface/disposable", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -678,6 +722,13 @@ define("lib/preview/model", ["require", "exports", "jquery", "lib/preview/model_
             this.$onUpdated = $.Callbacks("stopOnFalse");
             this.InitTimerEvent();
         }
+        Object.defineProperty(PreviewModel.prototype, "Formatter", {
+            get: function () {
+                return this.formatter;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(PreviewModel.prototype, "PreviewHTML", {
             get: function () {
                 return this.previewHTML;
@@ -822,6 +873,13 @@ define("lib/ss/preview/model", ["require", "exports", "lib/preview/model"], func
         function SSPreviewModel(formatter, delay_ms) {
             _super.call(this, formatter, delay_ms);
         }
+        Object.defineProperty(SSPreviewModel.prototype, "Formatter", {
+            get: function () {
+                return this.formatter;
+            },
+            enumerable: true,
+            configurable: true
+        });
         SSPreviewModel.prototype.UpdateInfo = function (arg) {
             if (arg.source === "") {
                 this.SetAsHidden();
@@ -836,8 +894,8 @@ define("lib/ss/preview/partyBBS/model_formatter", ["require", "exports", "lib/ut
     "use strict";
     var PartyBBSFormatter = (function (_super) {
         __extends(PartyBBSFormatter, _super);
-        function PartyBBSFormatter(args) {
-            _super.call(this, args);
+        function PartyBBSFormatter(arg) {
+            _super.call(this, arg);
         }
         PartyBBSFormatter.prototype.Exec = function (source, extraArg) {
             if (extraArg === void 0) { extraArg = { title: "", name: "" }; }
@@ -851,7 +909,7 @@ define("lib/ss/preview/partyBBS/model_formatter", ["require", "exports", "lib/ut
         };
         PartyBBSFormatter.TEMPLATE_CONTAINER = "<div class=\"BackBoard\">\n    <b>xxx \uFF1A{title}</b> &nbsp;&nbsp;{name}&#12288;\uFF0820xx/xx/xx xx:xx:xx\uFF09 <br> <br>{html}<br><br><br clear=\"ALL\">\n</div>";
         return PartyBBSFormatter;
-    }(model_formatter_2.Formatter));
+    }(model_formatter_2.SSFormatter));
     exports.PartyBBSFormatter = PartyBBSFormatter;
 });
 define("lib/ss/preview/partyBBS/model", ["require", "exports", "lib/ss/preview/model", "lib/ss/preview/partyBBS/model_formatter", "lib/ss/preview/templates"], function (require, exports, model_2, model_formatter_3, Templates) {
@@ -861,10 +919,17 @@ define("lib/ss/preview/partyBBS/model", ["require", "exports", "lib/ss/preview/m
         function PartyBBSModel(profile, delay_ms) {
             _super.call(this, new model_formatter_3.PartyBBSFormatter({
                 profile: profile,
-                template: Templates.Preview.PartyBBS,
-                at3ModeAsDefault: true
+                template: Templates.partyBBS,
+                stringModeAsDefault: true
             }), delay_ms);
         }
+        Object.defineProperty(PartyBBSModel.prototype, "Formatter", {
+            get: function () {
+                return this.formatter;
+            },
+            enumerable: true,
+            configurable: true
+        });
         PartyBBSModel.prototype.ReserveUpdate = function (arg) {
             if (arg.source === this.source && arg.extraArg.title === this.extraArg.title && arg.extraArg.name === this.extraArg.name) {
                 return false;
@@ -894,7 +959,7 @@ define("lib/ss/preview/diary/model_formatter", ["require", "exports", "lib/util/
         };
         DiaryFormatter.TEMPLATE_CONTAINER = "<div name=\"Diary\">{html}</div>";
         return DiaryFormatter;
-    }(model_formatter_4.Formatter));
+    }(model_formatter_4.SSFormatter));
     exports.DiaryFormatter = DiaryFormatter;
 });
 define("lib/ss/expr/rule", ["require", "exports"], function (require, exports) {
@@ -913,8 +978,8 @@ define("lib/ss/preview/diary/model", ["require", "exports", "lib/ss/preview/diar
         function DiaryModel(arg) {
             _super.call(this, new model_formatter_5.DiaryFormatter({
                 profile: arg.profile,
-                template: Templates.Preview.Diary,
-                at3ModeAsDefault: true
+                template: Templates.diary,
+                stringModeAsDefault: true
             }), arg.delay_ms);
             if ("showsCharCounts" in arg) {
                 this.showsCharCounts = arg.showsCharCounts;
@@ -923,6 +988,13 @@ define("lib/ss/preview/diary/model", ["require", "exports", "lib/ss/preview/diar
                 this.showsCharCounts = Config.SSPreview.showsCharCountsOnDiary || false;
             }
         }
+        Object.defineProperty(DiaryModel.prototype, "Formatter", {
+            get: function () {
+                return this.formatter;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(DiaryModel.prototype, "ShowsCharCounts", {
             get: function () {
                 return this.showsCharCounts;
@@ -952,9 +1024,9 @@ define("lib/ss/preview/serif/model", ["require", "exports", "lib/ss/preview/mode
     var SerifModel = (function (_super) {
         __extends(SerifModel, _super);
         function SerifModel(profile, delay_ms) {
-            _super.call(this, new model_formatter_6.Formatter({
+            _super.call(this, new model_formatter_6.SSFormatter({
                 profile: profile,
-                template: Templates.Preview.Serif,
+                template: Templates.serif,
                 allowsOrTag: true
             }), delay_ms);
         }
@@ -967,9 +1039,10 @@ define("lib/ss/preview/message/model", ["require", "exports", "lib/ss/preview/mo
     var MessageModel = (function (_super) {
         __extends(MessageModel, _super);
         function MessageModel(profile, delay_ms) {
-            _super.call(this, new model_formatter_7.Formatter({
+            _super.call(this, new model_formatter_7.SSFormatter({
                 profile: profile,
-                template: Templates.Preview.Message
+                template: Templates.message,
+                allowsOrTag: true
             }), delay_ms);
         }
         return MessageModel;
@@ -980,7 +1053,7 @@ define("lib/ss/preview/model_formatters", ["require", "exports", "lib/ss/preview
     "use strict";
     exports.Diary = model_formatter_8.DiaryFormatter;
     exports.PartyBBS = model_formatter_9.PartyBBSFormatter;
-    exports.Formatter = model_formatter_10.Formatter;
+    exports.SSFormatter = model_formatter_10.SSFormatter;
 });
 define("lib/ss/preview/models", ["require", "exports", "lib/ss/preview/partyBBS/model", "lib/ss/preview/diary/model", "lib/ss/preview/serif/model", "lib/ss/preview/message/model"], function (require, exports, model_6, model_7, model_8, model_9) {
     "use strict";
@@ -1044,6 +1117,9 @@ define("lib/preview/view", ["require", "exports", "jquery", "lib/preview/config"
             return this;
         };
         PreviewView.prototype.Update = function (model) {
+            if (model.IsDisabled) {
+                return false;
+            }
             if (!this.$container) {
                 this.InsertContainer();
             }
@@ -1056,9 +1132,6 @@ define("lib/preview/view", ["require", "exports", "jquery", "lib/preview/config"
                     return false;
                 }
             }
-            if (model.IsDisabled) {
-                return false;
-            }
             this.$container.html(model.PreviewHTML);
             return true;
         };
@@ -1070,7 +1143,7 @@ define("lib/preview/view", ["require", "exports", "jquery", "lib/preview/config"
     }());
     exports.PreviewView = PreviewView;
 });
-define("lib/ss/preview/diary/view", ["require", "exports", "lib/util/string/format", "lib/ss/preview/diary/model", "lib/preview/view", "lib/ss/preview/templates"], function (require, exports, format, model_10, view_1, Templates) {
+define("lib/ss/preview/diary/view", ["require", "exports", "jquery", "lib/util/string/format", "lib/ss/preview/diary/model", "lib/preview/view", "lib/ss/preview/templates"], function (require, exports, $, format, model_10, view_1, Templates) {
     "use strict";
     var DiaryView = (function (_super) {
         __extends(DiaryView, _super);
@@ -1078,7 +1151,7 @@ define("lib/ss/preview/diary/view", ["require", "exports", "lib/util/string/form
             _super.call(this, insert);
         }
         DiaryView.BuildCharCountLine = function (counts) {
-            var html = Templates.Preview.DiaryCharCountsHTML || DiaryView._DEFAULT_TEMPLATE_CHARCOUNTS;
+            var html = Templates.diaryCharCountsHTML || DiaryView._DEFAULT_TEMPLATE_CHARCOUNTS;
             html = format(html, {
                 charCount: counts.charCount,
                 charCountMax: model_10.DiaryModel.MAX_LENGTH_OF_CHARS,
@@ -1399,6 +1472,9 @@ define("lib/ss/preview/controllers", ["require", "exports", "lib/ss/preview/part
     "use strict";
     exports.PartyBBS = controller_3.PartyBBSController;
     // export { PartyBBS, Diary, Serif, Message, IPreviewController };
+});
+define("lib/preview/package", ["require", "exports"], function (require, exports) {
+    "use strict";
 });
 define("lib/ss/preview/packagedPreview", ["require", "exports"], function (require, exports) {
     "use strict";
