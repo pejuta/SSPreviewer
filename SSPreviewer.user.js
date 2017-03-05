@@ -7,7 +7,7 @@
 // @require     https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @resource    CSS_STYLE http://pjtool.webcrow.jp/ss/scripts/SSPreviewer/src/css/style.css
-// @version     0.2.005
+// @version     0.2.006
 // @grant       GM_addStyle
 // @grant       GM_getResourceText
 // ==/UserScript==
@@ -125,8 +125,10 @@ define("lib/ss/page", ["require", "exports"], function (require, exports) {
                     "/d/strgsaction.aspx": PageConfig.Reinforcement,
                     "/d/battle.aspx": PageConfig.BattleSettings,
                     "/d/battleprc.aspx": PageConfig.BattleSettings,
+                    "/d/battlespc.aspx": PageConfig.BattleSettings,
                     "/d/battlemessage.aspx": PageConfig.BattleWords,
                     "/d/battlemessageprc.aspx": PageConfig.BattleWords,
+                    "/d/battlemessagespc.aspx": PageConfig.BattleWords,
                     "/d/bms.aspx": PageConfig.BattleWords,
                     "/d/messageaction.aspx": PageConfig.Message,
                     "/d/commesaction.aspx": PageConfig.GroupMessage,
@@ -305,6 +307,7 @@ define("lib/ss/preview/templates", ["require", "exports"], function (require, ex
     // 注意: I**Templateを変更したい場合はコントローラー(から呼ばれるformatter)のコンストラクタが呼ばれる前に設定すること。
     // format arg: { imgDir, resultNum }
     exports.diceTagTemplateHTML = null;
+    exports.cardTagTemplateHTML = null;
     exports.defaultTemplate = null;
     exports.defaultSeparator = null;
     exports.diary = null;
@@ -328,9 +331,126 @@ define("lib/ss/preview/config", ["require", "exports", "lib/ss/preview/templates
         SSPreview.imgBaseURL = null;
         SSPreview.showsCharCountsOnDiary = true;
         SSPreview.randomizesDiceTagResult = false;
+        SSPreview.randomizesCardTagResult = false;
     })(SSPreview = exports.SSPreview || (exports.SSPreview = {}));
 });
-define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string/format", "lib/util/string/replaceLoop", "lib/util/html/escape", "lib/util/html/tag", "lib/ss/expr/parser", "lib/ss/preview/config"], function (require, exports, format, replaceLoop, htmlEscape, tag_1, parser_1, Config) {
+define("lib/ss/preview/model_misc", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var DiceCube = (function () {
+        function DiceCube() {
+        }
+        DiceCube.Throw = function () {
+            return Math.floor(Math.random() * 6) + 1;
+        };
+        return DiceCube;
+    }());
+    exports.DiceCube = DiceCube;
+    (function (CardSuits) {
+        CardSuits[CardSuits["Spade"] = 0] = "Spade";
+        CardSuits[CardSuits["Heart"] = 1] = "Heart";
+        CardSuits[CardSuits["Diamond"] = 2] = "Diamond";
+        CardSuits[CardSuits["Clover"] = 3] = "Clover";
+        CardSuits[CardSuits["Joker"] = 4] = "Joker";
+    })(exports.CardSuits || (exports.CardSuits = {}));
+    var CardSuits = exports.CardSuits;
+    // joker14枚以上だとこわれる 常識的に考えてそんなことしない
+    var Card = (function () {
+        function Card(index) {
+            this.num = 0;
+            this.suit = Math.floor(index / 13);
+            if (this.suit !== CardSuits.Joker) {
+                this.num = index % 13 + 1;
+            }
+        }
+        Object.defineProperty(Card.prototype, "Suit", {
+            get: function () {
+                return this.suit;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Card.prototype, "Number", {
+            get: function () {
+                return this.num;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return Card;
+    }());
+    exports.Card = Card;
+    var CardsDeck = (function () {
+        function CardsDeck(jokers, usesNewDeckOnOutOfCards) {
+            if (jokers === void 0) { jokers = CardsDeck._DEFAULT_JOKERS; }
+            if (usesNewDeckOnOutOfCards === void 0) { usesNewDeckOnOutOfCards = true; }
+            this.jokers = jokers;
+            this.usesNewDeckOnOutOfCards = usesNewDeckOnOutOfCards;
+            this.NewDeck();
+        }
+        Object.defineProperty(CardsDeck.prototype, "ExtantCards", {
+            // 残りカード配列のコピーを取得
+            get: function () {
+                return this._cards.concat();
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(CardsDeck.prototype, "length", {
+            get: function () {
+                return this._cards.length;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(CardsDeck.prototype, "InitialLength", {
+            get: function () {
+                return 52 + this.jokers;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        CardsDeck.prototype.NewDeck = function (shuffles) {
+            if (shuffles === void 0) { shuffles = true; }
+            var cards = [];
+            var length = this.InitialLength;
+            for (var ci = 0; ci < length; ++ci) {
+                cards[ci] = new Card(ci);
+            }
+            this._cards = cards;
+            if (shuffles) {
+                this.Shuffle();
+            }
+            return this;
+        };
+        // https://bost.ocks.org/mike/shuffle/
+        CardsDeck.prototype.Shuffle = function () {
+            var cds = this._cards;
+            var ci = cds.length;
+            while (ci > 0) {
+                var r = Math.floor(Math.random() * ci--);
+                // 要素交換
+                _a = [cds[r], cds[ci]], cds[ci] = _a[0], cds[r] = _a[1];
+            }
+            return this;
+            var _a;
+        };
+        // out of cards: null
+        CardsDeck.prototype.Draw = function () {
+            if (this._cards.length > 0) {
+                return this._cards.pop();
+            }
+            if (this.usesNewDeckOnOutOfCards) {
+                this.NewDeck();
+                return this.Draw();
+            }
+            return null;
+        };
+        CardsDeck._DEFAULT_JOKERS = 1;
+        return CardsDeck;
+    }());
+    exports.CardsDeck = CardsDeck;
+});
+define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string/format", "lib/util/string/replaceLoop", "lib/util/html/escape", "lib/util/html/tag", "lib/ss/expr/parser", "lib/ss/preview/config", "lib/ss/preview/model_misc"], function (require, exports, format, replaceLoop, htmlEscape, tag_1, parser_1, Config, model_misc_1) {
     "use strict";
     var Template = (function () {
         function Template() {
@@ -355,8 +475,6 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
     }());
     var SSFormatter = (function () {
         function SSFormatter(args) {
-            this.reReplace_EscapedDecoTag = new RegExp(htmlEscape.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "g");
-            this.reReplace_EscapedDiceTag = new RegExp(htmlEscape.escape("<D>"), "g");
             this.Profile = args.profile;
             this.StringModeAsDefault = args.stringModeAsDefault || false;
             this.AllowsOrTag = args.allowsOrTag || false;
@@ -443,12 +561,20 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
             // 1: escape
             var html = htmlEscape.escape(source);
             // 2: replace Deco-tags
-            html = replaceLoop(html, this.reReplace_EscapedDecoTag, "<span class='$1'>$2</span>");
+            html = replaceLoop(html, SSFormatter.reReplace_EscapedDecoTag, "<span class='$1'>$2</span>");
             // 3: parse and format
             html = this.Format(html);
             // 4: dice
-            html = html.replace(this.reReplace_EscapedDiceTag, function (match) {
+            html = html.replace(SSFormatter.reReplace_EscapedDiceTag, function (match) {
                 return SSFormatter.GenerateDiceTag(Config.SSPreview.randomizesDiceTagResult);
+            });
+            // 5: cards
+            var cardsDeck = null;
+            if (Config.SSPreview.randomizesCardTagResult) {
+                cardsDeck = new model_misc_1.CardsDeck(1);
+            }
+            html = html.replace(SSFormatter.reReplace_EscapedCardTag, function (match) {
+                return SSFormatter.GenerateCardTag(cardsDeck);
             });
             // 5: BR
             html = tag_1.lineBreaksToBR(html);
@@ -552,9 +678,24 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
             if (randomize === void 0) { randomize = false; }
             var resultNum = 1;
             if (randomize) {
-                resultNum = Math.floor(Math.random() * 6) + 1;
+                resultNum = model_misc_1.DiceCube.Throw();
             }
             return format(Config.Templates.diceTagTemplateHTML || SSFormatter._DEFAULT_DICE_TEMPLATE, { imgDir: Config.SSPreview.imgBaseURL || SSFormatter._DEFAULT_IMG_BASE_URL, resultNum: resultNum });
+        };
+        SSFormatter.GenerateCardTag = function (deck) {
+            var card;
+            if (deck) {
+                card = deck.Draw();
+            }
+            else {
+                card = new model_misc_1.Card(0);
+            }
+            var suitText = SSFormatter.SuitTexts[card.Suit];
+            var numText = "";
+            if (card.Suit !== model_misc_1.CardSuits.Joker) {
+                numText += card.Number;
+            }
+            return format(Config.Templates.cardTagTemplateHTML || SSFormatter._DEFAULT_CARD_TEMPLATE, { imgDir: Config.SSPreview.imgBaseURL || SSFormatter._DEFAULT_IMG_BASE_URL, suit: suitText, num: numText });
         };
         SSFormatter.takeLineBreaksFromEnd = function (source) {
             var m = /\n+$/.exec(source);
@@ -573,9 +714,15 @@ define("lib/ss/preview/model_formatter", ["require", "exports", "lib/util/string
         };
         // { imgDir, resultNum }
         SSFormatter._DEFAULT_DICE_TEMPLATE = "<img alt=\"dice\" src=\"{imgDir}d{resultNum}.png\" border=\"0\" height=\"20\" width=\"20\">";
+        // { suit, num }
+        SSFormatter._DEFAULT_CARD_TEMPLATE = "<IMG border=0 alt=card src=\"{imgDir}t/{suit}{num}.png\" width=30 height=40>";
         // must finish with '/'
         SSFormatter._DEFAULT_IMG_BASE_URL = "http://www.sssloxia.jp/p/";
         SSFormatter._DETAULT_SEPARATORS = { and: "", or: "<div class='separator_or'/>" };
+        SSFormatter.reReplace_EscapedDecoTag = new RegExp(htmlEscape.escape("<(F[1-7]|B|I|S)>([\\s\\S]*?)</\\1>"), "g");
+        SSFormatter.reReplace_EscapedDiceTag = new RegExp(htmlEscape.escape("<D>"), "g");
+        SSFormatter.reReplace_EscapedCardTag = new RegExp(htmlEscape.escape("<T>"), "g");
+        SSFormatter.SuitTexts = ["sd", "he", "da", "cv", "j"];
         return SSFormatter;
     }());
     exports.SSFormatter = SSFormatter;
@@ -1674,6 +1821,7 @@ define("SSPreviewer.user", ["require", "exports", "jquery", "lib/ss/profile", "l
         function Init() {
             Preview.Config.Preview.previewDelay_ms = 100;
             Preview.Config.SSPreview.randomizesDiceTagResult = true;
+            Preview.Config.SSPreview.randomizesCardTagResult = true;
             function InitWithSerifPreview(profile, $targetTextBox) {
                 return $targetTextBox.toArray().map(function (e, i) {
                     return new Preview.Package.Serif({
